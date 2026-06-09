@@ -42,7 +42,7 @@ export default {
 
             const target = interaction.options.getUser('user');
             const authorisation = interaction.options.getString('authorisation');
-            const reason = interaction.options.getString('reason') || "Removing the user's rank by selecting a role below";
+            const reason = interaction.options.getString('reason') || "Reason was not inputted. Consult the Issuing Moderator for further details.";
 
             const embed = new EmbedBuilder()
                 .setColor(0xFEE75C)

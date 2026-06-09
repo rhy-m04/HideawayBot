@@ -99,7 +99,7 @@ export default {
 
         const originalEmbed = interaction.message.embeds[0];
         const reason = originalEmbed?.fields?.find(f => f.name.includes('Message'))?.value
-            ?? 'No reason provided';
+            ?? 'Reason was not inputted. Consult the Issuing Moderator for further details.';
 
         if (!member) {
             await sendRankLog(guild, client, {

@@ -106,7 +106,7 @@ export default {
         const authorisation = originalEmbed?.fields?.find(f => f.name.includes('Authorisation'))?.value
             ?? 'Not provided';
         const reason = originalEmbed?.fields?.find(f => f.name.includes('Message'))?.value
-            ?? 'No reason provided';
+            ?? 'Reason was not inputted. Consult the Issuing Moderator for further details.';
 
         if (!member) {
             await sendDerankLog(guild, client, {

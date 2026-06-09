@@ -36,7 +36,7 @@ export default {
             }
 
             const target = interaction.options.getUser('user');
-            const reason = interaction.options.getString('reason') || "Set the user's rank by selecting a role below";
+            const reason = interaction.options.getString('reason') || "Reason was not inputted. Consult the Issuing Moderator for further details.";
 
             const embed = new EmbedBuilder()
                 .setColor(0x062F77)
