@@ -3,6 +3,7 @@ import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '
 import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { checkRateLimit } from '../../utils/rateLimiter.js';
+import { sendModerationDM } from '../../utils/moderationDM.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
@@ -127,6 +128,8 @@ export default {
                         });
                         continue;
                     }
+
+                    await sendModerationDM({ user: member.user, action: 'masskick', reason });
 
                     await member.kick(reason);
 

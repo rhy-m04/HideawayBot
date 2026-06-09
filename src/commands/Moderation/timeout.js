@@ -3,6 +3,7 @@ import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '
 import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
+import { sendModerationDM } from '../../utils/moderationDM.js';
 
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -95,6 +96,10 @@ export default {
             }
 
             const durationMs = durationMinutes * 60 * 1000;
+            const expiresAt = new Date(Date.now() + durationMs);
+
+            await sendModerationDM({ user: targetUser, action: 'timeout', reason, expiresAt });
+
             await member.timeout(durationMs, reason);
 
             const durationDisplay =

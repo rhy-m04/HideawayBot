@@ -5,6 +5,7 @@ import { logger } from '../../utils/logger.js';
 import { WarningService } from '../../services/warningService.js';
 import { handleInteractionError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { sendModerationDM } from '../../utils/moderationDM.js';
 export default {
     data: new SlashCommandBuilder()
         .setName("warn")
@@ -82,6 +83,8 @@ export default {
                         }
                     }
                 });
+
+                await sendModerationDM({ user: target, action: 'warn', reason });
 
                 await InteractionHelper.safeEditReply(interaction, {
                     embeds: [

@@ -4,6 +4,7 @@ import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
+import { sendModerationDM } from '../../utils/moderationDM.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -82,7 +83,8 @@ export default {
         );
       }
 
-      
+      await sendModerationDM({ user: targetUser, action: 'kick', reason });
+
       await member.kick(reason);
 
       
