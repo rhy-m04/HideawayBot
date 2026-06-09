@@ -50,6 +50,10 @@ export default {
                         value: interaction.guild.name
                     },
                     {
+                        name: '🛡️ Authorised By',
+                        value: `${interaction.member.displayName} (${interaction.user.username})`
+                    },
+                    {
                         name: '📋 Message',
                         value: reason
                     }
