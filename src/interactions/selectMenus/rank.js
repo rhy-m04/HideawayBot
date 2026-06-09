@@ -37,18 +37,18 @@ async function sendRankLog(guild, client, { targetUser, role, issuer, reason, st
             .setColor(status === 'SUCCESS' ? 0x57F287 : 0xED4245)
             .addFields(
                 {
-                    name: '👤 User',
+                    name: '👤 User\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003',
                     value: `${userName}\n\`${userId}\``,
                     inline: true
                 },
                 {
-                    name: '🎖️ Role Added',
+                    name: '🎖️ Role Added\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003',
                     value: role ? role.name : 'Unknown',
                     inline: true
                 },
                 {
                     name: '🛡️ Issued By',
-                    value: `${issuerName}\n${issuerTopRole}`,
+                    value: `${issuerName} → ${issuer.user.username}`,
                     inline: true
                 },
                 {
