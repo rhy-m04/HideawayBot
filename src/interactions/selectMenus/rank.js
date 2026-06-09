@@ -28,16 +28,15 @@ export default {
             await member.roles.add(role, `Rank set by ${interaction.user.tag}`);
 
             const originalEmbed = interaction.message.embeds[0];
-            const successEmbed = new EmbedBuilder()
-                .setColor(0x57F287)
-                .setDescription(`✅ Set **${role.name}** for ${member.toString()}`);
-
             await interaction.editReply({
                 embeds: [originalEmbed],
                 components: []
             });
 
-            await interaction.followUp({ embeds: [successEmbed], ephemeral: true });
+            await interaction.followUp({
+                content: `${member.toString()} has been issued ${role.toString()}`,
+                ephemeral: true
+            });
         } catch (error) {
             logger.error('Rank select error:', error);
             await interaction.followUp({
