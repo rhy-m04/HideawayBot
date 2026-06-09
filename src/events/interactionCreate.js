@@ -303,6 +303,22 @@ export default {
               customId: interaction.customId
             }, interactionTraceContext));
           }
+        } else if (interaction.isRoleSelectMenu()) {
+          const [customId, ...args] = interaction.customId.split(':');
+          const selectMenu = client.selectMenus.get(customId);
+
+          if (!selectMenu) {
+            return;
+          }
+
+          try {
+            await selectMenu.execute(interaction, client, args);
+          } catch (error) {
+            await handleInteractionError(interaction, error, withTraceContext({
+              type: 'role_select_menu',
+              customId: interaction.customId
+            }, interactionTraceContext));
+          }
         } else if (interaction.isModalSubmit()) {
           if (interaction.customId.startsWith('app_modal_')) {
             try {
