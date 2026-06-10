@@ -85,25 +85,12 @@ export default {
                 guildId: guild.id,
                 eventType: EVENT_TYPES.MEMBER_LEAVE,
                 data: {
-                    description: `${user.tag} left the server`,
-                    userId: user.id,
-                    fields: [
-                        {
-                            name: '👤 Member',
-                            value: `${user.tag} (${user.id})`,
-                            inline: true
-                        },
-                        {
-                            name: '👥 Member Count',
-                            value: guild.memberCount.toString(),
-                            inline: true
-                        },
-                        {
-                            name: '📅 Joined',
-                            value: `<t:${Math.floor((member.joinedTimestamp || 0) / 1000)}:R>`,
-                            inline: true
-                        }
-                    ]
+                    title: 'Member Left',
+                    description: [
+                        `${user.toString()} has Left The Hideaway Community`,
+                        `The Community is now at ${guild.memberCount} Members!`
+                    ].join('\n'),
+                    userId: user.id
                 }
             });
         } catch (error) {

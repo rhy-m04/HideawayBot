@@ -32,17 +32,22 @@ export default {
 
         // Generic voice join/leave/move logging
         try {
+            const now = Math.floor(Date.now() / 1000);
+            const userMention = member.toString();
+
             if (!oldState.channel && newState.channel) {
                 await logEvent({
                     client,
                     guildId,
                     eventType: 'voice.join',
                     data: {
-                        userId,
-                        fields: [
-                            { name: '👤 Member', value: `${member.toString()} (${member.user.username})`, inline: true },
-                            { name: '🔊 Channel', value: newState.channel.toString(), inline: true }
-                        ]
+                        title: 'Voice Joined',
+                        description: [
+                            `User: ${userMention} — ${userId}`,
+                            `<t:${now}:F>`,
+                            `${userMention} has joined ${newState.channel.toString()}`
+                        ].join('\n'),
+                        userId
                     }
                 });
             } else if (oldState.channel && !newState.channel) {
@@ -51,11 +56,13 @@ export default {
                     guildId,
                     eventType: 'voice.leave',
                     data: {
-                        userId,
-                        fields: [
-                            { name: '👤 Member', value: `${member.toString()} (${member.user.username})`, inline: true },
-                            { name: '🔊 Channel', value: oldState.channel.toString(), inline: true }
-                        ]
+                        title: 'Voice Left',
+                        description: [
+                            `User: ${userMention} — ${userId}`,
+                            `<t:${now}:F>`,
+                            `${userMention} has left ${oldState.channel.toString()}`
+                        ].join('\n'),
+                        userId
                     }
                 });
             } else if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
@@ -64,12 +71,13 @@ export default {
                     guildId,
                     eventType: 'voice.move',
                     data: {
-                        userId,
-                        fields: [
-                            { name: '👤 Member', value: `${member.toString()} (${member.user.username})`, inline: true },
-                            { name: '📤 From', value: oldState.channel.toString(), inline: true },
-                            { name: '📥 To', value: newState.channel.toString(), inline: true }
-                        ]
+                        title: 'Voice Moved',
+                        description: [
+                            `User: ${userMention} — ${userId}`,
+                            `<t:${now}:F>`,
+                            `${userMention} has moved from ${oldState.channel.toString()} to ${newState.channel.toString()}`
+                        ].join('\n'),
+                        userId
                     }
                 });
             }

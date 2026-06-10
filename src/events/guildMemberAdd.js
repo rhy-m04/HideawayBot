@@ -113,25 +113,12 @@ export default {
                 guildId: guild.id,
                 eventType: EVENT_TYPES.MEMBER_JOIN,
                 data: {
-                    description: `${user.tag} joined the server`,
-                    userId: user.id,
-                    fields: [
-                        {
-                            name: '👤 Member',
-                            value: `${user.tag} (${user.id})`,
-                            inline: true
-                        },
-                        {
-                            name: '👥 Member Count',
-                            value: guild.memberCount.toString(),
-                            inline: true
-                        },
-                        {
-                            name: '📅 Account Created',
-                            value: `<t:${Math.floor(user.createdTimestamp / 1000)}:R>`,
-                            inline: true
-                        }
-                    ]
+                    title: 'Member Joined',
+                    description: [
+                        `${user.toString()} has Joined The Hideaway Community`,
+                        `The Community is now at ${guild.memberCount} Members!`
+                    ].join('\n'),
+                    userId: user.id
                 }
             });
         } catch (error) {

@@ -2,7 +2,7 @@ import { Events } from 'discord.js';
 import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 import { logger } from '../utils/logger.js';
 
-const MAX_LOGGED_EDIT_CONTENT_LENGTH = 512;
+const MAX_CONTENT_LENGTH = 512;
 
 export default {
   name: Events.MessageUpdate,
@@ -11,66 +11,43 @@ export default {
   async execute(oldMessage, newMessage) {
     try {
       if (!newMessage.guild || newMessage.author?.bot) return;
-
-      
       if (oldMessage.content === newMessage.content) return;
 
-      const fields = [];
+      const authorMention = newMessage.author ? `<@${newMessage.author.id}>` : '`Unknown`';
+      const authorId = newMessage.author?.id ?? 'Unknown';
+      const now = Math.floor(Date.now() / 1000);
 
-      
-      if (newMessage.author) {
-        fields.push({
-          name: '👤 Author',
-          value: `${newMessage.author.tag} (${newMessage.author.id})`,
-          inline: true
-        });
-      }
+      const oldRaw = oldMessage.content || '*(empty)*';
+      const newRaw = newMessage.content || '*(empty)*';
 
-      
-      fields.push({
-        name: '💬 Channel',
-        value: `${newMessage.channel.toString()} (${newMessage.channel.id})`,
-        inline: true
-      });
+      const oldContent = oldRaw.length > MAX_CONTENT_LENGTH
+        ? oldRaw.substring(0, MAX_CONTENT_LENGTH - 3) + '...'
+        : oldRaw;
+      const newContent = newRaw.length > MAX_CONTENT_LENGTH
+        ? newRaw.substring(0, MAX_CONTENT_LENGTH - 3) + '...'
+        : newRaw;
 
-      
-      const oldContent = oldMessage.content || '*(empty message)*';
-      const oldContentTruncated = oldContent.length > MAX_LOGGED_EDIT_CONTENT_LENGTH 
-        ? oldContent.substring(0, MAX_LOGGED_EDIT_CONTENT_LENGTH - 3) + '...' 
-        : oldContent;
-      fields.push({
-        name: '📝 Old Content',
-        value: oldContentTruncated,
-        inline: false
-      });
-
-      
-      const newContent = newMessage.content || '*(empty message)*';
-      const newContentTruncated = newContent.length > MAX_LOGGED_EDIT_CONTENT_LENGTH 
-        ? newContent.substring(0, MAX_LOGGED_EDIT_CONTENT_LENGTH - 3) + '...' 
-        : newContent;
-      fields.push({
-        name: '📝 New Content',
-        value: newContentTruncated,
-        inline: false
-      });
-
-      
-      fields.push({
-        name: '🆔 Message ID',
-        value: newMessage.id,
-        inline: true
-      });
+      const description = [
+        `User: ${authorMention} — ${authorId}`,
+        `<t:${now}:F>`,
+        ``,
+        `**Before:**`,
+        oldContent,
+        ``,
+        `**After:**`,
+        newContent
+      ].join('\n');
 
       await logEvent({
         client: newMessage.client,
         guildId: newMessage.guild.id,
         eventType: EVENT_TYPES.MESSAGE_EDIT,
         data: {
-          description: `A message was edited in ${newMessage.channel.toString()}`,
+          title: 'Message Edited',
+          description,
           userId: newMessage.author?.id,
           channelId: newMessage.channel.id,
-          fields
+          footer: `AuthorID: ${authorId}  •  MessageID: ${newMessage.id}`
         }
       });
 

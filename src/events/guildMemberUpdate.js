@@ -10,29 +10,49 @@ export default {
     try {
       if (!newMember.guild) return;
 
-      const fields = [];
+      const oldRoles = oldMember.roles.cache;
+      const newRoles = newMember.roles.cache;
 
-      
-      fields.push({
-        name: '👤 Member',
-        value: `${newMember.user.tag} (${newMember.user.id})`,
-        inline: true
-      });
+      const addedRoles = newRoles.filter(r => !oldRoles.has(r.id));
+      const removedRoles = oldRoles.filter(r => !newRoles.has(r.id));
 
-      
+      if (addedRoles.size > 0) {
+        for (const role of addedRoles.values()) {
+          await logEvent({
+            client: newMember.client,
+            guildId: newMember.guild.id,
+            eventType: EVENT_TYPES.MEMBER_ROLE_ADD,
+            data: {
+              title: 'Role Added',
+              description: [
+                `User: ${newMember.toString()} — ${newMember.user.id}`,
+                `Role: ${role.toString()} — ${role.id}`
+              ].join('\n'),
+              userId: newMember.user.id
+            }
+          });
+        }
+      }
+
+      if (removedRoles.size > 0) {
+        for (const role of removedRoles.values()) {
+          await logEvent({
+            client: newMember.client,
+            guildId: newMember.guild.id,
+            eventType: EVENT_TYPES.MEMBER_ROLE_REMOVE,
+            data: {
+              title: 'Role Removed',
+              description: [
+                `User: ${newMember.toString()} — ${newMember.user.id}`,
+                `Role: ${role.toString()} — ${role.id}`
+              ].join('\n'),
+              userId: newMember.user.id
+            }
+          });
+        }
+      }
+
       if (oldMember.nickname !== newMember.nickname) {
-        fields.push({
-          name: '🏷️ Old Nickname',
-          value: oldMember.nickname || '*(no nickname)*',
-          inline: true
-        });
-
-        fields.push({
-          name: '🏷️ New Nickname',
-          value: newMember.nickname || '*(no nickname)*',
-          inline: true
-        });
-
         await logEvent({
           client: newMember.client,
           guildId: newMember.guild.id,
@@ -40,11 +60,13 @@ export default {
           data: {
             description: `Member nickname changed: ${newMember.user.tag}`,
             userId: newMember.user.id,
-            fields
+            fields: [
+              { name: '👤 Member', value: `${newMember.user.tag} (${newMember.user.id})`, inline: true },
+              { name: '🏷️ Old Nickname', value: oldMember.nickname || '*(no nickname)*', inline: true },
+              { name: '🏷️ New Nickname', value: newMember.nickname || '*(no nickname)*', inline: true }
+            ]
           }
         });
-
-        return;
       }
 
     } catch (error) {

@@ -3,7 +3,7 @@ import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 import { logger } from '../utils/logger.js';
 import { getReactionRoleMessage, deleteReactionRoleMessage } from '../services/reactionRoleService.js';
 
-const MAX_LOGGED_MESSAGE_CONTENT_LENGTH = 1024;
+const MAX_CONTENT_LENGTH = 1024;
 
 export default {
   name: Events.MessageDelete,
@@ -18,7 +18,6 @@ export default {
         if (reactionRoleData) {
           await deleteReactionRoleMessage(message.client, message.guild.id, message.id);
           logger.info(`Cleaned up reaction role database entry for manually deleted message ${message.id} in guild ${message.guild.id}`);
-
           try {
             await logEvent({
               client: message.client,
@@ -28,21 +27,9 @@ export default {
                 description: `Reaction role message was deleted manually and removed from database.`,
                 channelId: message.channel?.id,
                 fields: [
-                  {
-                    name: '🗑️ Message ID',
-                    value: message.id,
-                    inline: true
-                  },
-                  {
-                    name: '📍 Channel',
-                    value: message.channel ? `${message.channel.toString()} (${message.channel.id})` : 'Unknown',
-                    inline: true
-                  },
-                  {
-                    name: '🧹 Cleanup',
-                    value: 'Database entry removed automatically',
-                    inline: false
-                  }
+                  { name: '🗑️ Message ID', value: message.id, inline: true },
+                  { name: '📍 Channel', value: message.channel ? `${message.channel.toString()} (${message.channel.id})` : 'Unknown', inline: true },
+                  { name: '🧹 Cleanup', value: 'Database entry removed automatically', inline: false }
                 ]
               }
             });
@@ -56,68 +43,33 @@ export default {
 
       if (message.author?.bot) return;
 
-      const fields = [];
+      const authorMention = message.author ? `<@${message.author.id}>` : '`Unknown`';
+      const authorId = message.author?.id ?? 'Unknown';
+      const now = Math.floor(Date.now() / 1000);
 
-      
-      if (message.author) {
-        fields.push({
-          name: '👤 Author',
-          value: `${message.author.tag} (${message.author.id})`,
-          inline: true
-        });
-      }
+      const rawContent = message.content || '*(no text content)*';
+      const content = rawContent.length > MAX_CONTENT_LENGTH
+        ? rawContent.substring(0, MAX_CONTENT_LENGTH - 3) + '...'
+        : rawContent;
 
-      
-      fields.push({
-        name: '💬 Channel',
-        value: `${message.channel.toString()} (${message.channel.id})`,
-        inline: true
-      });
-
-      
-      if (message.content) {
-        const content = message.content.length > MAX_LOGGED_MESSAGE_CONTENT_LENGTH 
-          ? message.content.substring(0, MAX_LOGGED_MESSAGE_CONTENT_LENGTH - 3) + '...' 
-          : message.content;
-        fields.push({
-          name: '📝 Content',
-          value: content || '*(empty message)*',
-          inline: false
-        });
-      }
-
-      
-      fields.push({
-        name: '🆔 Message ID',
-        value: message.id,
-        inline: true
-      });
-
-      
-      fields.push({
-        name: '📅 Created',
-        value: `<t:${Math.floor(message.createdTimestamp / 1000)}:R>`,
-        inline: true
-      });
-
-      
-      if (message.attachments.size > 0) {
-        fields.push({
-          name: '📎 Attachments',
-          value: message.attachments.size.toString(),
-          inline: true
-        });
-      }
+      const description = [
+        `User: ${authorMention} — ${authorId}`,
+        `<t:${now}:F>`,
+        ``,
+        `**Deleted Message:**`,
+        content
+      ].join('\n');
 
       await logEvent({
         client: message.client,
         guildId: message.guild.id,
         eventType: EVENT_TYPES.MESSAGE_DELETE,
         data: {
-          description: `A message was deleted in ${message.channel.toString()}`,
+          title: 'Message Deleted',
+          description,
           userId: message.author?.id,
           channelId: message.channel.id,
-          fields
+          footer: `AuthorID: ${authorId}  •  MessageID: ${message.id}`
         }
       });
 

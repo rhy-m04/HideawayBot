@@ -1,6 +1,7 @@
 import { EmbedBuilder, ChannelType } from 'discord.js';
 import { getGuildConfig } from './guildConfig.js';
 import { logger } from '../utils/logger.js';
+import { LOG_CHANNELS } from '../config/logChannels.js';
 
 
 
@@ -60,7 +61,10 @@ const EVENT_TYPES = {
 
   VOICE_JOIN: 'voice.join',
   VOICE_LEAVE: 'voice.leave',
-  VOICE_MOVE: 'voice.move'
+  VOICE_MOVE: 'voice.move',
+
+  MEMBER_ROLE_ADD: 'role.memberadd',
+  MEMBER_ROLE_REMOVE: 'role.memberremove'
 };
 
 const EVENT_COLORS = {
@@ -99,6 +103,8 @@ const EVENT_COLORS = {
   'voice.join': 0x2ecc71,
   'voice.leave': 0xe74c3c,
   'voice.move': 0x3498db,
+  'role.memberadd': 0x2ecc71,
+  'role.memberremove': 0xe74c3c,
 };
 
 const EVENT_ICONS = {
@@ -137,6 +143,8 @@ const EVENT_ICONS = {
   'voice.join': '🎙️',
   'voice.leave': '🔇',
   'voice.move': '🔀',
+  'role.memberadd': '➕',
+  'role.memberremove': '➖',
 };
 
 
@@ -176,16 +184,21 @@ export async function logEvent({
     if (data?.channelId && ignoredChannels.includes(data.channelId)) {
       return;
     }
-    
-    
-    if (!isLoggingEnabled(config, eventType)) {
-      return;
-    }
 
-    
-    const logChannelId = getLogChannelForEvent(config, eventType);
-    if (!logChannelId) {
-      return;
+    const category = eventType.split('.')[0];
+    const hardcodedChannelId = LOG_CHANNELS[category];
+
+    let logChannelId;
+    if (hardcodedChannelId) {
+      logChannelId = hardcodedChannelId;
+    } else {
+      if (!isLoggingEnabled(config, eventType)) {
+        return;
+      }
+      logChannelId = getLogChannelForEvent(config, eventType);
+      if (!logChannelId) {
+        return;
+      }
     }
 
     const channel = guild.channels.cache.get(logChannelId) || 
@@ -306,6 +319,10 @@ function createLogEmbed(guild, eventType, data) {
   
   if (data.fields && Array.isArray(data.fields)) {
     embed.addFields(data.fields);
+  }
+
+  if (data.footer) {
+    embed.setFooter({ text: data.footer });
   }
 
   return embed;
