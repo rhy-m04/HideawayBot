@@ -56,7 +56,11 @@ const EVENT_TYPES = {
   GIVEAWAY_DELETE: 'giveaway.delete',
   
   
-  COUNTER_UPDATE: 'counter.update'
+  COUNTER_UPDATE: 'counter.update',
+
+  VOICE_JOIN: 'voice.join',
+  VOICE_LEAVE: 'voice.leave',
+  VOICE_MOVE: 'voice.move'
 };
 
 const EVENT_COLORS = {
@@ -92,6 +96,9 @@ const EVENT_COLORS = {
   'giveaway.reroll': 0x3498DB,
   'giveaway.delete': 0xE74C3C,
   'counter.update': 0x0099ff,
+  'voice.join': 0x2ecc71,
+  'voice.leave': 0xe74c3c,
+  'voice.move': 0x3498db,
 };
 
 const EVENT_ICONS = {
@@ -127,6 +134,9 @@ const EVENT_ICONS = {
   'giveaway.reroll': '🔄',
   'giveaway.delete': '🗑️',
   'counter.update': '📊',
+  'voice.join': '🎙️',
+  'voice.leave': '🔇',
+  'voice.move': '🔀',
 };
 
 

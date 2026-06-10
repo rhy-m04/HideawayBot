@@ -8,6 +8,7 @@ import {
 } from '../utils/database.js';
 import { sanitizeInput } from '../utils/sanitization.js';
 import { logger } from '../utils/logger.js';
+import { logEvent } from '../services/loggingService.js';
 
 const channelCreationCooldown = new Map();
 const VOICE_CREATE_COOLDOWN_MS = 2000;
@@ -25,8 +26,56 @@ export default {
 
         const guildId = newState.guild.id;
         const userId = newState.member.id;
+        const member = newState.member;
         const cooldownKey = `${guildId}-${userId}`;
         cleanupCooldownEntries();
+
+        // Generic voice join/leave/move logging
+        try {
+            if (!oldState.channel && newState.channel) {
+                await logEvent({
+                    client,
+                    guildId,
+                    eventType: 'voice.join',
+                    data: {
+                        userId,
+                        fields: [
+                            { name: '👤 Member', value: `${member.toString()} (${member.user.username})`, inline: true },
+                            { name: '🔊 Channel', value: newState.channel.toString(), inline: true }
+                        ]
+                    }
+                });
+            } else if (oldState.channel && !newState.channel) {
+                await logEvent({
+                    client,
+                    guildId,
+                    eventType: 'voice.leave',
+                    data: {
+                        userId,
+                        fields: [
+                            { name: '👤 Member', value: `${member.toString()} (${member.user.username})`, inline: true },
+                            { name: '🔊 Channel', value: oldState.channel.toString(), inline: true }
+                        ]
+                    }
+                });
+            } else if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
+                await logEvent({
+                    client,
+                    guildId,
+                    eventType: 'voice.move',
+                    data: {
+                        userId,
+                        fields: [
+                            { name: '👤 Member', value: `${member.toString()} (${member.user.username})`, inline: true },
+                            { name: '📤 From', value: oldState.channel.toString(), inline: true },
+                            { name: '📥 To', value: newState.channel.toString(), inline: true }
+                        ]
+                    }
+                });
+            }
+        } catch (voiceLogError) {
+            logger.warn('Failed to log voice event:', voiceLogError);
+        }
 
         try {
             const config = await getJoinToCreateConfig(client, guildId);
