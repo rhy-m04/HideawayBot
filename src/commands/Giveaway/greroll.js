@@ -183,25 +183,16 @@ export default {
                         guildId: interaction.guildId,
                         eventType: EVENT_TYPES.GIVEAWAY_REROLL,
                         data: {
-                            description: `Giveaway rerolled: ${giveaway.prize}`,
-                            channelId: giveaway.channelId,
+                            title: 'Giveaway Log',
                             userId: interaction.user.id,
                             fields: [
-                                {
-                                    name: '🎁 Prize',
-                                    value: giveaway.prize || 'Mystery Prize!',
-                                    inline: true
-                                },
-                                {
-                                    name: '🏆 New Winners',
-                                    value: winnerMentions,
-                                    inline: false
-                                },
-                                {
-                                    name: '👥 Total Entries',
-                                    value: participants.length.toString(),
-                                    inline: true
-                                }
+                                { name: 'Giveaway ID', value: messageId, inline: true },
+                                { name: 'Giveaway Host', value: `<@${giveaway.hostId}> (${giveaway.hostId})`, inline: true },
+                                { name: 'Giveaway Created', value: giveaway.createdAt ? `<t:${Math.floor(new Date(giveaway.createdAt).getTime() / 1000)}:F>` : 'N/A', inline: true },
+                                { name: 'Giveaway Conclusion', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+                                { name: 'Giveaway Winner', value: winnerMentions, inline: false },
+                                { name: '\u200b', value: '\u200b', inline: false },
+                                { name: 'Giveaway Information', value: `**Prize:** ${giveaway.prize || 'Mystery Prize!'}\n**Entries:** ${participants.length}\n**Action:** Rerolled`, inline: false }
                             ]
                         }
                     });
@@ -263,25 +254,16 @@ export default {
                     guildId: interaction.guildId,
                     eventType: EVENT_TYPES.GIVEAWAY_REROLL,
                     data: {
-                        description: `Giveaway rerolled: ${giveaway.prize}`,
-                        channelId: giveaway.channelId,
+                        title: 'Giveaway Log',
                         userId: interaction.user.id,
                         fields: [
-                            {
-                                name: '🎁 Prize',
-                                value: giveaway.prize || 'Mystery Prize!',
-                                inline: true
-                            },
-                            {
-                                name: '🏆 New Winners',
-                                value: winnerMentions,
-                                inline: false
-                            },
-                            {
-                                name: '👥 Total Entries',
-                                value: participants.length.toString(),
-                                inline: true
-                            }
+                            { name: 'Giveaway ID', value: messageId, inline: true },
+                            { name: 'Giveaway Host', value: `<@${giveaway.hostId}> (${giveaway.hostId})`, inline: true },
+                            { name: 'Giveaway Created', value: giveaway.createdAt ? `<t:${Math.floor(new Date(giveaway.createdAt).getTime() / 1000)}:F>` : 'N/A', inline: true },
+                            { name: 'Giveaway Conclusion', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+                            { name: 'Giveaway Winner', value: winnerMentions, inline: false },
+                            { name: '\u200b', value: '\u200b', inline: false },
+                            { name: 'Giveaway Information', value: `**Prize:** ${giveaway.prize || 'Mystery Prize!'}\n**Entries:** ${participants.length}\n**Action:** Rerolled`, inline: false }
                         ]
                     }
                 });

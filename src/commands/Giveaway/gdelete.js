@@ -162,20 +162,16 @@ export default {
                     guildId: interaction.guildId,
                     eventType: EVENT_TYPES.GIVEAWAY_DELETE,
                     data: {
-                        description: `Giveaway deleted: ${giveaway.prize}`,
-                        channelId: giveaway.channelId,
+                        title: 'Giveaway Log',
                         userId: interaction.user.id,
                         fields: [
-                            {
-                                name: '🎁 Prize',
-                                value: giveaway.prize || 'Unknown',
-                                inline: true
-                            },
-                            {
-                                name: '📊 Entries',
-                                value: (giveaway.participants?.length || 0).toString(),
-                                inline: true
-                            }
+                            { name: 'Giveaway ID', value: messageId, inline: true },
+                            { name: 'Giveaway Host', value: giveaway.hostId ? `<@${giveaway.hostId}> (${giveaway.hostId})` : 'Unknown', inline: true },
+                            { name: 'Giveaway Created', value: giveaway.createdAt ? `<t:${Math.floor(new Date(giveaway.createdAt).getTime() / 1000)}:F>` : 'N/A', inline: true },
+                            { name: 'Giveaway Conclusion', value: 'Deleted', inline: true },
+                            { name: 'Giveaway Winner', value: 'None — Deleted', inline: false },
+                            { name: '\u200b', value: '\u200b', inline: false },
+                            { name: 'Giveaway Information', value: `**Prize:** ${giveaway.prize || 'Unknown'}\n**Entries:** ${giveaway.participants?.length || 0}\n**Action:** Deleted by <@${interaction.user.id}>`, inline: false }
                         ]
                     }
                 });

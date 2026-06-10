@@ -154,25 +154,16 @@ export default {
                         guildId: interaction.guildId,
                         eventType: EVENT_TYPES.GIVEAWAY_WINNER,
                         data: {
-                            description: `Giveaway ended with ${winners.length} winner(s)`,
-                            channelId: channel.id,
+                            title: 'Giveaway Log',
                             userId: interaction.user.id,
                             fields: [
-                                {
-                                    name: '🎁 Prize',
-                                    value: updatedGiveaway.prize || 'Mystery Prize!',
-                                    inline: true
-                                },
-                                {
-                                    name: '🏆 Winners',
-                                    value: winnerMentions,
-                                    inline: false
-                                },
-                                {
-                                    name: '👥 Entries',
-                                    value: endResult.participantCount.toString(),
-                                    inline: true
-                                }
+                                { name: 'Giveaway ID', value: messageId, inline: true },
+                                { name: 'Giveaway Host', value: `<@${updatedGiveaway.hostId}> (${updatedGiveaway.hostId})`, inline: true },
+                                { name: 'Giveaway Created', value: updatedGiveaway.createdAt ? `<t:${Math.floor(new Date(updatedGiveaway.createdAt).getTime() / 1000)}:F>` : 'N/A', inline: true },
+                                { name: 'Giveaway Conclusion', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+                                { name: 'Giveaway Winner', value: winnerMentions, inline: false },
+                                { name: '\u200b', value: '\u200b', inline: false },
+                                { name: 'Giveaway Information', value: `**Prize:** ${updatedGiveaway.prize || 'Mystery Prize!'}\n**Entries:** ${endResult.participantCount}\n**Action:** Ended`, inline: false }
                             ]
                         }
                     });

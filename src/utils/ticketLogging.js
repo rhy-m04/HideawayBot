@@ -1,24 +1,7 @@
-﻿import { EmbedBuilder, ChannelType } from 'discord.js';
-import { getGuildConfig } from '../services/guildConfig.js';
-import { EVENT_TYPES } from '../services/loggingService.js';
+import { EmbedBuilder, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { logger } from './logger.js';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+const TICKET_LOG_CHANNEL_ID = '1514063621712515213';
 
 export async function logTicketEvent({ client, guildId, event }) {
   try {
@@ -28,31 +11,36 @@ export async function logTicketEvent({ client, guildId, event }) {
       return;
     }
 
-    const config = await getGuildConfig(client, guildId);
-
-    const logChannelId = getLogChannelForEventType(config, event.type);
-    if (!logChannelId) {
-      return;
-    }
-
-    const channel = guild.channels.cache.get(logChannelId) || await guild.channels.fetch(logChannelId).catch(() => null);
+    const channel = guild.channels.cache.get(TICKET_LOG_CHANNEL_ID)
+      || await guild.channels.fetch(TICKET_LOG_CHANNEL_ID).catch(() => null);
     if (!channel) {
-      logger.warn(`Ticket log channel not found: ${logChannelId} for event type: ${event.type}`);
+      logger.warn(`Ticket log channel not found: ${TICKET_LOG_CHANNEL_ID}`);
       return;
     }
 
     const permissions = channel.permissionsFor(guild.members.me);
-    if (!permissions.has(['SendMessages', 'EmbedLinks'])) {
-      logger.warn(`Missing permissions in ticket log channel: ${logChannelId}`);
+    if (!permissions?.has(['SendMessages', 'EmbedLinks'])) {
+      logger.warn(`Missing permissions in ticket log channel: ${TICKET_LOG_CHANNEL_ID}`);
       return;
     }
 
     const embed = await createTicketLogEmbed(guild, event);
-    
+
     const messageOptions = { embeds: [embed] };
-    
+
     if (event.attachments && event.attachments.length > 0) {
       messageOptions.files = event.attachments;
+    }
+
+    if (['close', 'delete', 'transcript'].includes(event.type)) {
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`dl_transcript:${event.ticketId || event.ticketNumber || 'unknown'}`)
+          .setLabel('Download Transcript')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('📥')
+      );
+      messageOptions.components = [row];
     }
 
     await channel.send(messageOptions);
@@ -63,252 +51,92 @@ export async function logTicketEvent({ client, guildId, event }) {
   }
 }
 
-
-
-
-
-
-
-function getLogChannelForEventType(config, eventType) {
-  switch (eventType) {
-    case 'transcript':
-      return config.ticketTranscriptChannelId || null;
-
-    case 'open':
-    case 'close':
-    case 'delete':
-    case 'claim':
-    case 'unclaim':
-    case 'priority':
-      return config.ticketLogsChannelId || null;
-
-    default:
-      return null;
-  }
-}
-
-function mapTicketEventType(eventType) {
-  switch (eventType) {
-    case 'open':
-      return EVENT_TYPES.TICKET_CREATE;
-    case 'close':
-      return EVENT_TYPES.TICKET_CLOSE;
-    case 'delete':
-      return EVENT_TYPES.TICKET_DELETE;
-    case 'claim':
-    case 'unclaim':
-      return EVENT_TYPES.TICKET_CLAIM;
-    case 'priority':
-      return EVENT_TYPES.TICKET_PRIORITY;
-    case 'transcript':
-      return EVENT_TYPES.TICKET_TRANSCRIPT;
-    default:
-      return null;
-  }
-}
-
-
-
-
-
-
-
 async function createTicketLogEmbed(guild, event) {
   const embed = new EmbedBuilder();
-  
-  const eventColors = {
-open: 0x2ecc71,
-close: 0xe74c3c,
-delete: 0x8b0000,
-claim: 0x3498db,
-unclaim: 0xf39c12,
-priority: 0x9b59b6,
-transcript: 0x1abc9c
+
+  const titleMap = {
+    open:       '🎫 Report Ticket Opened',
+    close:      '🔓 Report Ticket Closed',
+    delete:     '🗑️ Report Ticket Deleted',
+    claim:      '🙋 Ticket Claimed',
+    unclaim:    '🔓 Ticket Unclaimed',
+    priority:   '🎯 Priority Updated',
+    transcript: '📜 Transcript Created',
   };
-  
-  embed.setColor(eventColors[event.type] || 0x95a5a6);
-  
-  const eventInfo = getEventDisplayInfo(event);
-  embed.setTitle(eventInfo.title);
-  embed.setDescription(eventInfo.description);
-  
+
+  const colorMap = {
+    open:       0x2ecc71,
+    close:      0xe74c3c,
+    delete:     0x8b0000,
+    claim:      0x3498db,
+    unclaim:    0xf39c12,
+    priority:   0x9b59b6,
+    transcript: 0x1abc9c,
+  };
+
+  embed.setColor(colorMap[event.type] || 0x95a5a6);
+  embed.setTitle(titleMap[event.type] || '🎫 Ticket Event');
   embed.setTimestamp();
-  
-  if (event.ticketId || event.ticketNumber) {
-    embed.setFooter({ 
-      text: `Ticket ID: ${event.ticketNumber || event.ticketId || 'Unknown'}` 
-    });
-  }
-  
-  const fields = [];
-  
+
+  const ticketNum = event.ticketNumber || 1;
+  const ticketIdStr = event.ticketId ? `${guild.id}-${ticketNum}-1` : (event.ticketId || 'Unknown');
+  const ticketRef = event.ticketRef || `report-${ticketNum}`;
+
+  embed.addFields(
+    { name: '🪪 Ticket ID',  value: `\`${ticketIdStr}\``, inline: true },
+    { name: '🔢 Ticket Ref', value: `\`${ticketRef}\``,   inline: true }
+  );
+
+  embed.addFields({ name: '🌐 Server', value: guild.id, inline: false });
+
+  let openedByStr = 'Unknown';
   if (event.userId) {
-    try {
-      const user = await guild.client.users.fetch(event.userId).catch(() => null);
-      if (user) {
-        fields.push({
-          name: '👤 Ticket User',
-          value: `${user.tag} (${event.userId})`,
-          inline: true
-        });
-      }
-    } catch (error) {
-      fields.push({
-        name: '👤 Ticket User',
-        value: `<@${event.userId}> (${event.userId})`,
-        inline: true
-      });
-    }
+    const openedAtTs = event.openedAt ? Math.floor(event.openedAt / 1000) : null;
+    openedByStr = openedAtTs
+      ? `<@${event.userId}> at <t:${openedAtTs}:F>`
+      : `<@${event.userId}>`;
   }
-  
-  if (event.executorId) {
-    try {
-      const executor = await guild.client.users.fetch(event.executorId).catch(() => null);
-      if (executor) {
-        fields.push({
-          name: '🔨 Executed By',
-          value: `${executor.tag} (${event.executorId})`,
-          inline: true
-        });
-      }
-    } catch (error) {
-      fields.push({
-        name: '🔨 Executed By',
-        value: `<@${event.executorId}> (${event.executorId})`,
-        inline: true
-      });
-    }
-  }
-  
-  if (event.reason) {
-    fields.push({
-      name: '📝 Reason',
-      value: event.reason,
+  embed.addFields({ name: '👤 Opened by', value: openedByStr, inline: false });
+
+  if (['close', 'delete', 'claim', 'unclaim'].includes(event.type) && event.executorId) {
+    const closedAtTs = Math.floor(Date.now() / 1000);
+    const label = event.type === 'claim' ? '🙋 Claimed by'
+                : event.type === 'unclaim' ? '🔓 Unclaimed by'
+                : '🕐 Closed by';
+    embed.addFields({
+      name: label,
+      value: `<@${event.executorId}> at <t:${closedAtTs}:F>`,
       inline: false
     });
   }
-  
-  if (event.priority) {
-    const priorityEmojis = {
-      none: '⚪',
-      low: '🔵',
-      medium: '🟢',
-      high: '🟡',
-      urgent: '🔴'
-    };
-    
-    fields.push({
-      name: '🎯 Priority',
-      value: `${priorityEmojis[event.priority] || '⚪'} ${event.priority.charAt(0).toUpperCase() + event.priority.slice(1)}`,
-      inline: true
-    });
+
+  if (event.reason) {
+    const reasonText = event.reason.length > 1000
+      ? event.reason.substring(0, 997) + '...'
+      : event.reason;
+    embed.addFields({ name: '📋 Reason', value: `\`\`\`${reasonText}\`\`\``, inline: false });
   }
-  
-  if (event.metadata) {
-    Object.entries(event.metadata).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        fields.push({
-          name: `📊 ${key.charAt(0).toUpperCase() + key.slice(1)}`,
-          value: String(value),
-          inline: true
-        });
-      }
-    });
-  }
-  
-  embed.addFields(fields);
-  
+
   return embed;
 }
 
-
-
-
-
-
-function getEventDisplayInfo(event) {
-  const ticketRef = event.ticketNumber ? `#${event.ticketNumber}` : event.ticketId ? `<#${event.ticketId}>` : 'Unknown';
-  
-  const eventMessages = {
-    open: {
-      title: '🎫 Ticket Opened',
-      description: `A new ticket has been created: ${ticketRef}`
-    },
-    close: {
-      title: '🔒 Ticket Closed',
-      description: `Ticket ${ticketRef} has been closed`
-    },
-    delete: {
-      title: '🗑️ Ticket Deleted',
-      description: `Ticket ${ticketRef} has been permanently deleted`
-    },
-    claim: {
-      title: '🙋 Ticket Claimed',
-      description: `Ticket ${ticketRef} has been claimed`
-    },
-    unclaim: {
-      title: '🔓 Ticket Unclaimed',
-      description: `Ticket ${ticketRef} has been unclaimed`
-    },
-    priority: {
-      title: '🎯 Priority Updated',
-      description: `Priority changed for ticket ${ticketRef}`
-    },
-    transcript: {
-      title: '📜 Transcript Created',
-      description: `Transcript generated for ticket ${ticketRef}`
-    }
-  };
-  
-  return eventMessages[event.type] || {
-    title: '🎫 Ticket Event',
-    description: `An event occurred for ticket ${ticketRef}`
-  };
-}
-
-
-
-
-
-
-
 export async function getTicketLoggingConfig(client, guildId) {
-  const config = await getGuildConfig(client, guildId);
   return {
-    enabled: !!(config.ticketLogsChannelId || config.ticketTranscriptChannelId),
-    lifecycleChannelId: config.ticketLogsChannelId || null,
-    transcriptChannelId: config.ticketTranscriptChannelId || null,
+    enabled: true,
+    lifecycleChannelId: TICKET_LOG_CHANNEL_ID,
+    transcriptChannelId: TICKET_LOG_CHANNEL_ID,
   };
 }
-
-
-
-
-
-
 
 export function validateLogChannel(channel, botMember) {
   if (!channel || channel.type !== ChannelType.GuildText) {
-    return {
-      valid: false,
-      error: 'Channel must be a text channel.'
-    };
+    return { valid: false, error: 'Channel must be a text channel.' };
   }
-  
   const permissions = channel.permissionsFor(botMember);
   const requiredPermissions = ['SendMessages', 'EmbedLinks'];
-  
   const missing = requiredPermissions.filter(perm => !permissions.has(perm));
-  
   if (missing.length > 0) {
-    return {
-      valid: false,
-      error: `Missing permissions: ${missing.join(', ')}`
-    };
+    return { valid: false, error: `Missing permissions: ${missing.join(', ')}` };
   }
-  
   return { valid: true };
 }
-
-
-

@@ -12,12 +12,27 @@ import { checkRateLimit } from '../utils/rateLimiter.js';
 const MESSAGE_XP_RATE_LIMIT_ATTEMPTS = 12;
 const MESSAGE_XP_RATE_LIMIT_WINDOW_MS = 10000;
 
+const AUTO_REPLY_CHANNELS = ['1511829483555000350', '1512226244513497311'];
+
+const AUTO_REPLIES = [
+  "Thanks for your message! A team member will get back to you shortly. 😊",
+  "Hey there! We've received your message and will respond soon.",
+  "Thanks for reaching out! Our team will be with you shortly.",
+  "Got your message! Hang tight and someone will assist you soon.",
+  "Hello! Your message has been received — we'll be in touch shortly.",
+];
+
 export default {
   name: Events.MessageCreate,
   async execute(message, client) {
     try {
-      
       if (message.author.bot || !message.guild) return;
+
+      if (AUTO_REPLY_CHANNELS.includes(message.channel.id)) {
+        const reply = AUTO_REPLIES[Math.floor(Math.random() * AUTO_REPLIES.length)];
+        await message.reply({ content: reply });
+        return;
+      }
 
       await handleLeveling(message, client);
     } catch (error) {

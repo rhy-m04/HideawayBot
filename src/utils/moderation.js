@@ -1,9 +1,9 @@
 import { EmbedBuilder } from 'discord.js';
-import { getGuildConfig } from '../services/guildConfig.js';
 import { logger } from './logger.js';
 import { getFromDb, setInDb } from './database.js';
 import { getColor } from '../config/bot.js';
 
+const MOD_LOG_CHANNEL_ID = '1514063528603160666';
 
 
 
@@ -19,6 +19,21 @@ import { getColor } from '../config/bot.js';
 
 
 
+
+
+const SANCTION_MAP = {
+  'Member Banned': 'Ban',
+  'Member Kicked': 'Kick',
+  'Member Timed Out': 'Timeout',
+  'User Warned': 'Warning',
+  'Member Untimeouted': 'Timeout Removed',
+  'Member Unbanned': 'Unban',
+  'Messages Purged': 'Purge',
+  'Channel Locked': 'Channel Lock',
+  'Channel Unlocked': 'Channel Unlock',
+  'DM Sent': 'Direct Message',
+  'Warnings Viewed': 'Warnings Viewed',
+};
 
 export async function logEvent({ client, guild, guildId, event }) {
   try {
@@ -29,97 +44,47 @@ export async function logEvent({ client, guild, guildId, event }) {
       logger.warn('logEvent invoked without valid guild or guildId');
       return;
     }
-    const config = await getGuildConfig(client, guild.id);
-    const loggingDisabled = config?.logging?.enabled === false || config?.enableLogging === false;
-    const logChannelId = config?.logging?.channelId || config?.logChannelId;
-    if (!logChannelId || loggingDisabled) {
-      logger.debug(`Logging disabled or no log channel configured for guild ${guild.id}`);
-      return;
-    }
 
-    const ignoredUsers = config.logIgnore?.users || [];
-    if (event.metadata?.userId && ignoredUsers.includes(event.metadata.userId)) {
-      return;
-    }
-
-    const logChannel = guild.channels.cache.get(logChannelId);
+    const logChannel = guild.channels.cache.get(MOD_LOG_CHANNEL_ID)
+      || await guild.channels.fetch(MOD_LOG_CHANNEL_ID).catch(() => null);
     if (!logChannel) {
-      logger.warn(`Log channel ${logChannelId} not found in guild ${guild.id}`);
+      logger.warn(`Mod log channel ${MOD_LOG_CHANNEL_ID} not found in guild ${guild.id}`);
       return;
     }
 
-    
-    const actionStyles = {
-      'Member Banned': { color: getColor('error'), icon: '🔨' },
-      'Member Kicked': { color: getColor('warning'), icon: '👢' },
-      'Member Timed Out': { color: getColor('warning'), icon: '⏳' },
-      'Member Untimeouted': { color: getColor('success'), icon: '✅' },
-      'User Warned': { color: getColor('warning'), icon: '⚠️' },
-      'Warnings Viewed': { color: getColor('info'), icon: '👁️' },
-      'Messages Purged': { color: getColor('moderation'), icon: '🗑️' },
-      'Channel Locked': { color: getColor('moderation'), icon: '🔒' },
-      'Channel Unlocked': { color: getColor('success'), icon: '🔓' },
-      'Case Created': { color: getColor('info'), icon: '📋' },
-      'Case Updated': { color: getColor('moderation'), icon: '📝' },
-      'DM Sent': { color: getColor('info'), icon: '✉️' },
-      'Log Channel Activated': { color: getColor('success'), icon: '📝' }
-    };
+    const sanction = SANCTION_MAP[event.action] || event.action;
+    const moderatorId = event.metadata?.moderatorId;
+    const moderatorMention = moderatorId
+      ? `<@${moderatorId}> (${moderatorId})`
+      : (event.executor || 'Unknown');
 
-    const style = actionStyles[event.action] || { color: getColor('primary'), icon: '🔨' };
+    const now = Math.floor(Date.now() / 1000);
+
+    let expiry = 'Permanent / N/A';
+    if (event.metadata?.timeoutEnds) {
+      const expiryTs = Math.floor(new Date(event.metadata.timeoutEnds).getTime() / 1000);
+      expiry = `<t:${expiryTs}:F>`;
+    }
 
     const embed = new EmbedBuilder()
-      .setColor(event.color || style.color)
-      .setTitle(`${style.icon} ${event.action}`)
-      .addFields(
-        { name: "Target", value: event.target, inline: true },
-        { name: "Moderator", value: event.executor, inline: true }
+      .setColor(getColor('moderation') || 0xe74c3c)
+      .setTitle('Moderation Action')
+      .setDescription(
+        `**Sanction Issued:** ${sanction}\n` +
+        `**Reason:** ${event.reason || 'No reason provided'}\n` +
+        `**Date of Sanction:** <t:${now}:F>\n` +
+        `**Date of Expiry:** ${expiry}\n` +
+        `**Issuing Moderator:** ${moderatorMention}`
       )
-      .setTimestamp()
-      .setFooter({ 
-        text: `Guild ID: ${guild.id} | Moderator ID: ${event.executor.match(/\((\d+)\)/)?.[1] || 'Unknown'}`,
-        iconURL: guild.iconURL()
-      });
-
-    if (event.reason) {
-      embed.addFields({
-        name: "Reason",
-        value: event.reason.length > 1024 ? event.reason.substring(0, 1021) + '...' : event.reason,
-        inline: false
-      });
-    }
-
-    if (event.duration) {
-      embed.addFields({
-        name: "Duration",
-        value: event.duration,
-        inline: true
-      });
-    }
-
-    if (event.metadata) {
-      Object.entries(event.metadata).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          embed.addFields({
-            name: key.charAt(0).toUpperCase() + key.slice(1),
-            value: String(value).length > 1024 ? String(value).substring(0, 1021) + '...' : String(value),
-            inline: true
-          });
-        }
-      });
-    }
+      .setTimestamp();
 
     if (event.caseId) {
-      embed.addFields({
-        name: "Case ID",
-        value: `#${event.caseId}`,
-        inline: true
-      });
+      embed.setFooter({ text: `Case ID: #${event.caseId}` });
     }
 
     await logChannel.send({ embeds: [embed] });
-    
-    logger.info(`Moderation action logged: ${event.action} by ${event.executor} on ${event.target} in guild ${guild.id}`);
-    
+    logger.info(`Moderation action logged: ${event.action} in guild ${guild.id}`);
+
   } catch (error) {
     logger.error("Error logging moderation event:", error);
   }

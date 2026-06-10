@@ -1,5 +1,6 @@
 import { Events, MessageFlags } from 'discord.js';
 import { logger } from '../utils/logger.js';
+import { hasModPermission } from '../utils/modPermCheck.js';
 import { getGuildConfig } from '../services/guildConfig.js';
 import { handleApplicationModal } from '../commands/Community/apply.js';
 import { handleApplicationReviewModal } from '../commands/Community/app-admin.js';
@@ -86,6 +87,13 @@ export default {
                   withTraceContext({ commandName: interaction.commandName, guildId: interaction.guild.id }, interactionTraceContext)
                 );
               }
+            }
+
+            if (command.category === 'moderation' && interaction.member && !hasModPermission(interaction.member)) {
+              return interaction.reply({
+                content: '❌ You do not have the required role to use moderation commands.',
+                flags: MessageFlags.Ephemeral
+              });
             }
 
             await command.execute(interaction, guildConfig, client);

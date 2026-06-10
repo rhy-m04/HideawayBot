@@ -141,30 +141,16 @@ export default {
                     guildId: interaction.guildId,
                     eventType: EVENT_TYPES.GIVEAWAY_CREATE,
                     data: {
-                        description: `Giveaway created: ${prizeName}`,
-                        channelId: targetChannel.id,
+                        title: 'Giveaway Log',
                         userId: interaction.user.id,
                         fields: [
-                            {
-                                name: '🎁 Prize',
-                                value: prizeName,
-                                inline: true
-                            },
-                            {
-                                name: '🏆 Winners',
-                                value: winnerCount.toString(),
-                                inline: true
-                            },
-                            {
-                                name: '⏰ Duration',
-                                value: durationString,
-                                inline: true
-                            },
-                            {
-                                name: '📍 Channel',
-                                value: targetChannel.toString(),
-                                inline: true
-                            }
+                            { name: 'Giveaway ID', value: giveawayMessage.id, inline: true },
+                            { name: 'Giveaway Host', value: `<@${interaction.user.id}> (${interaction.user.id})`, inline: true },
+                            { name: 'Giveaway Created', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+                            { name: 'Giveaway Conclusion', value: `<t:${Math.floor(endTime / 1000)}:F>`, inline: true },
+                            { name: 'Giveaway Winner', value: 'TBD', inline: false },
+                            { name: '\u200b', value: '\u200b', inline: false },
+                            { name: 'Giveaway Information', value: `**Prize:** ${prizeName}\n**Winners:** ${winnerCount}\n**Duration:** ${durationString}\n**Channel:** <#${targetChannel.id}>`, inline: false }
                         ]
                     }
                 });

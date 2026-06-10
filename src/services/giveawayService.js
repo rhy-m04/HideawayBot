@@ -489,24 +489,15 @@ export async function checkGiveaways(client) {
               guildId,
               eventType: EVENT_TYPES.GIVEAWAY_WINNER,
               data: {
-                description: `Giveaway ended with ${winners.length} winner(s)`,
-                channelId: channel.id,
+                title: 'Giveaway Log',
                 fields: [
-                  {
-                    name: '🎁 Prize',
-                    value: giveaway.prize || 'Mystery Prize!',
-                    inline: true
-                  },
-                  {
-                    name: '🏆 Winners',
-                    value: winners.map(id => `<@${id}>`).join(', '),
-                    inline: false
-                  },
-                  {
-                    name: '👥 Entries',
-                    value: participants.length.toString(),
-                    inline: true
-                  }
+                  { name: 'Giveaway ID', value: giveawayId, inline: true },
+                  { name: 'Giveaway Host', value: giveaway.hostId ? `<@${giveaway.hostId}> (${giveaway.hostId})` : 'Unknown', inline: true },
+                  { name: 'Giveaway Created', value: giveaway.createdAt ? `<t:${Math.floor(new Date(giveaway.createdAt).getTime() / 1000)}:F>` : 'N/A', inline: true },
+                  { name: 'Giveaway Conclusion', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+                  { name: 'Giveaway Winner', value: winners.map(id => `<@${id}>`).join(', '), inline: false },
+                  { name: '\u200b', value: '\u200b', inline: false },
+                  { name: 'Giveaway Information', value: `**Prize:** ${giveaway.prize || 'Mystery Prize!'}\n**Entries:** ${participants.length}\n**Action:** Auto-ended`, inline: false }
                 ]
               }
             });
