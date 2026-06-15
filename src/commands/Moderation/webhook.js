@@ -57,6 +57,21 @@ export default {
                         .setRequired(true)
                         .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
                 )
+                .addAttachmentOption(o =>
+                    o.setName('json')
+                        .setDescription('Optional Discohook JSON file to send immediately after creating the webhook')
+                        .setRequired(false)
+                )
+                .addStringOption(o =>
+                    o.setName('username')
+                        .setDescription('Display name override for the initial message')
+                        .setRequired(false)
+                )
+                .addStringOption(o =>
+                    o.setName('avatar')
+                        .setDescription('Avatar URL override for the initial message')
+                        .setRequired(false)
+                )
         )
         .addSubcommand(sub =>
             sub.setName('send')
@@ -103,6 +118,19 @@ export default {
     category: 'moderation',
 
     async execute(interaction, config, client) {
+        const ALLOWED_ROLES = ['1511500077137399928', '1511500091544961045'];
+        const hasRole = ALLOWED_ROLES.some(r => interaction.member.roles.cache.has(r));
+
+        if (!hasRole) {
+            const denyEmbed = new EmbedBuilder()
+                .setColor(0xED4245)
+                .setDescription(
+                    '🚫 **You are missing the proper permissions to carry out this command.**\n\n' +
+                    'Contact the Hideaway Community Owner if you believe this is a mistake.'
+                );
+            return interaction.reply({ embeds: [denyEmbed], flags: MessageFlags.Ephemeral });
+        }
+
         const deferOk = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
         if (!deferOk) return;
 
@@ -113,11 +141,20 @@ export default {
             if (sub === 'create') {
                 const name = interaction.options.getString('name').toLowerCase().replace(/\s+/g, '-');
                 const channel = interaction.options.getChannel('channel');
+                const jsonAttachment = interaction.options.getAttachment('json');
+                const usernameOverride = interaction.options.getString('username');
+                const avatarOverride = interaction.options.getString('avatar');
 
                 const webhooks = await getWebhooks(guildId);
                 if (webhooks[name]) {
                     return InteractionHelper.safeEditReply(interaction, {
                         content: `❌ A webhook named **${name}** already exists. Delete it first or choose a different name.`
+                    });
+                }
+
+                if (jsonAttachment && !jsonAttachment.name.endsWith('.json') && !jsonAttachment.contentType?.includes('json')) {
+                    return InteractionHelper.safeEditReply(interaction, {
+                        content: '❌ The attached file must be a `.json` file exported from Discohook.'
                     });
                 }
 
@@ -144,6 +181,34 @@ export default {
                 };
                 await saveWebhooks(guildId, webhooks);
 
+                let initialSent = false;
+                let initialError = null;
+
+                if (jsonAttachment) {
+                    try {
+                        const res = await fetch(jsonAttachment.url);
+                        if (!res.ok) throw new Error(`Could not download the file (HTTP ${res.status})`);
+                        const raw = await res.text();
+                        const payload = parseDiscohookJson(raw);
+
+                        if (usernameOverride) payload.username = usernameOverride;
+                        if (avatarOverride) payload.avatar_url = avatarOverride;
+
+                        const whClient = new WebhookClient({ id: discordWebhook.id, token: discordWebhook.token });
+                        await whClient.send({
+                            ...(payload.content ? { content: payload.content } : {}),
+                            ...(payload.embeds?.length ? { embeds: payload.embeds } : {}),
+                            ...(payload.username ? { username: payload.username } : {}),
+                            ...(payload.avatar_url ? { avatarURL: payload.avatar_url } : {}),
+                        });
+                        whClient.destroy();
+                        initialSent = true;
+                    } catch (err) {
+                        logger.error('Webhook create — initial send error:', err);
+                        initialError = err.message;
+                    }
+                }
+
                 const embed = new EmbedBuilder()
                     .setColor(0x57F287)
                     .setTitle('✅ Webhook Created')
@@ -154,6 +219,15 @@ export default {
                     )
                     .setFooter({ text: 'Use /webhook send to post through it' })
                     .setTimestamp();
+
+                if (jsonAttachment) {
+                    embed.addFields({
+                        name: 'Initial Message',
+                        value: initialSent
+                            ? '✅ JSON sent successfully'
+                            : `❌ Failed to send: ${initialError ?? 'unknown error'}`
+                    });
+                }
 
                 return InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
             }
