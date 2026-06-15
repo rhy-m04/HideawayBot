@@ -358,7 +358,20 @@ export async function closeTicket(client, guild, channel, closedBy, reason = 'No
                 )
                 .setTimestamp();
 
-            await webhook.send({ embeds: [closeEmbed], files: [file] });
+            const { ButtonBuilder, ButtonStyle, ActionRowBuilder: AR } = await import('discord.js');
+            const sentMsg = await webhook.send({ embeds: [closeEmbed], files: [file] });
+
+            const attachmentUrl = sentMsg?.attachments?.first?.()?.url;
+            if (attachmentUrl) {
+                const row = new AR().addComponents(
+                    new ButtonBuilder()
+                        .setLabel('Download Transcript')
+                        .setStyle(ButtonStyle.Link)
+                        .setEmoji('📄')
+                        .setURL(attachmentUrl)
+                );
+                await webhook.editMessage(sentMsg.id, { components: [row] }).catch(() => {});
+            }
         }
     } catch (err) {
         logger.warn('[Tickets] Close transcript error:', err.message);
