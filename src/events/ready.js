@@ -27,6 +27,12 @@ export default {
           const notice = await getFromDb(`offline_notice_${guild.id}`);
           if (!notice) continue;
 
+          const nowSec = Math.floor(Date.now() / 1000);
+          if (notice.expiresAt && nowSec < notice.expiresAt) {
+            logger.info(`[Ready] Offline notice in ${guild.name} not yet expired — skipping deletion.`);
+            continue;
+          }
+
           await setInDb(`offline_notice_${guild.id}`, null);
 
           const channel = guild.channels.cache.get(notice.channelId)
