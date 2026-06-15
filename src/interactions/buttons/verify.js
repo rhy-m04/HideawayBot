@@ -37,13 +37,24 @@ export default [
                 });
             }
 
-            const embed = new EmbedBuilder()
+            const dmEmbed = new EmbedBuilder()
+                .setColor(0x5865F2)
+                .setTitle('Verification Notice')
+                .setDescription(
+                    `You have been verified in the Hideaway Community Server. ` +
+                    `This means you now have access to our community channels, and lots of others available to all members of the community.`
+                )
+                .setTimestamp();
+
+            await member.user.send({ embeds: [dmEmbed] }).catch(() => {});
+
+            const confirmEmbed = new EmbedBuilder()
                 .setColor(0x57F287)
                 .setTitle('✅ Verified!')
                 .setDescription(`You've been verified and now have full access to **${guild.name}**. Welcome!`)
                 .setTimestamp();
 
-            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            await interaction.reply({ embeds: [confirmEmbed], flags: MessageFlags.Ephemeral });
         }
     }
 ];
