@@ -254,7 +254,7 @@ export async function createTicketChannel(client, guild, user, type, fields) {
     );
 
     const controlMsg = await channel.send({
-        content: `<@${user.id}> Thanks for opening this ticket. Someone from our Moderation Team will be here to help you shortly.`,
+        content: `<@${user.id}> Thanks for opening a ticket. Someone from our Moderation Team will be here to help you shortly.`,
         embeds: [embed],
         components: [row1, row2]
     });
@@ -357,7 +357,7 @@ function msToHuman(ms) {
     return `${h}h ${m % 60}m`;
 }
 
-const TICKET_LOG_CHANNEL = '1516566841626071110';
+const TICKET_LOG_CHANNEL = '1514313553803477084';
 
 export async function closeTicket(client, guild, channel, closedBy, reason = 'No reason provided') {
     const ticketData = await getTicketData(guild.id, channel.id);
