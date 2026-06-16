@@ -357,7 +357,7 @@ function msToHuman(ms) {
     return `${h}h ${m % 60}m`;
 }
 
-const TICKET_LOG_CHANNEL = '1514063621712515213';
+const TICKET_LOG_CHANNEL = '1516566841626071110';
 
 export async function closeTicket(client, guild, channel, closedBy, reason = 'No reason provided') {
     const ticketData = await getTicketData(guild.id, channel.id);
