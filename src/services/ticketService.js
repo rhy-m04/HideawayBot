@@ -433,6 +433,9 @@ export async function addUserToTicket(guild, channel, ticketData, userId) {
 }
 
 export async function removeUserFromTicket(guild, channel, ticketData, userId) {
+    // Don't allow removing the ticket opener
+    if (userId === ticketData.userId) return false;
+
     if (!ticketData.addedUsers || !ticketData.addedUsers.includes(userId)) return false;
 
     ticketData.addedUsers = ticketData.addedUsers.filter(id => id !== userId);
@@ -488,6 +491,14 @@ export async function escalateTicket(client, guild, channel, ticketData, escalat
         SendMessages: true,
         ReadMessageHistory: true,
         ManageMessages: true,
+        AttachFiles: true
+    }).catch(() => {});
+
+    // Ensure ticket opener still has access
+    await channel.permissionOverwrites.edit(ticketData.userId, {
+        ViewChannel: true,
+        SendMessages: true,
+        ReadMessageHistory: true,
         AttachFiles: true
     }).catch(() => {});
 
