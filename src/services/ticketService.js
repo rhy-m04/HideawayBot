@@ -235,7 +235,7 @@ export async function createTicketChannel(client, guild, user, type, fields) {
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('ticket_claim')
-            .setLabel('Claim')
+            .setLabel('Claim Ticket')
             .setEmoji('🙋')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
@@ -254,7 +254,7 @@ export async function createTicketChannel(client, guild, user, type, fields) {
     );
 
     const controlMsg = await channel.send({
-        content: `<@${user.id}> Welcome! A staff member will be with you shortly.`,
+        content: `<@${user.id}> Thanks for opening this ticket. Someone from our Moderation Team will be here to help you shortly.`,
         embeds: [embed],
         components: [row1, row2]
     });
