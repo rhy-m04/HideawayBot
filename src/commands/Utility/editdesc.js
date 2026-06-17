@@ -1,5 +1,7 @@
-import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
 import { logger } from '../../utils/logger.js';
+
+const LOG_CHANNEL_ID = '1516566841626071110';
 
 export default {
     data: new SlashCommandBuilder()
@@ -49,6 +51,24 @@ export default {
                     `**Before:** ${oldDescription}\n` +
                     `**After:** ${newDescription}`
             });
+
+            const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID)
+                || await interaction.guild.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+
+            if (logChannel) {
+                const embed = new EmbedBuilder()
+                    .setColor(0x5865F2)
+                    .setTitle('✏️ Command Description Updated')
+                    .addFields(
+                        { name: '⌨️ Command', value: `\`/${commandName}\``, inline: true },
+                        { name: '👤 Updated by', value: `${interaction.user}`, inline: true },
+                        { name: '📝 Before', value: oldDescription || '*none*', inline: false },
+                        { name: '✅ After', value: newDescription, inline: false }
+                    )
+                    .setTimestamp();
+
+                await logChannel.send({ embeds: [embed] }).catch(() => {});
+            }
         } catch (err) {
             logger.error('[EditDesc] Failed to update command description:', err.message);
             await interaction.editReply({
