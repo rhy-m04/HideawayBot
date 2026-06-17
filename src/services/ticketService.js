@@ -228,6 +228,8 @@ export async function createTicketChannel(client, guild, user, type, fields) {
     await setInDb(getTicketKey(guild.id, channel.id), ticketData);
     await setActiveTicket(guild.id, user.id, type, channel.id);
 
+    sendOpenLog(client, guild, type, user, ticketData, channel, ticketNum).catch(() => {});
+
     const embed = buildTicketEmbed(ticketData, user, config);
 
     const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
@@ -290,8 +292,6 @@ function buildTicketEmbed(ticketData, user, config) {
 async function sendOpenLog(client, guild, type, user, ticketData, channel, ticketNum) {
     try {
         const config = TICKET_TYPES[type];
-        const webhook = await getOrCreateWebhook(client, guild, config.webhookChannelId);
-        if (!webhook) return;
 
         const embed = new EmbedBuilder()
             .setColor(config.color)
@@ -307,9 +307,17 @@ async function sendOpenLog(client, guild, type, user, ticketData, channel, ticke
             embed.addFields({ name: label, value: value.slice(0, 1024) });
         }
 
-        await webhook.send({ embeds: [embed] });
+        const webhook = await getOrCreateWebhook(client, guild, TICKET_LOG_CHANNEL);
+        if (webhook) {
+            await webhook.send({ embeds: [embed] });
+            return;
+        }
+
+        const logChannel = guild.channels.cache.get(TICKET_LOG_CHANNEL)
+            || await guild.channels.fetch(TICKET_LOG_CHANNEL).catch(() => null);
+        if (logChannel) await logChannel.send({ embeds: [embed] });
     } catch (err) {
-        logger.warn('[Tickets] Open log webhook error:', err.message);
+        logger.warn('[Tickets] Open log error:', err.message);
     }
 }
 
@@ -374,49 +382,48 @@ export async function closeTicket(client, guild, channel, closedBy, reason = 'No
     try {
         const transcript = await generateTranscript(channel);
         const config = TICKET_TYPES[ticketData.type];
+        const buffer = Buffer.from(transcript, 'utf-8');
+        const file = new AttachmentBuilder(buffer, { name: `transcript-${channel.name}.txt` });
+
+        const openedUser = await client.users.fetch(ticketData.userId).catch(() => null);
+        const closedByUser = await client.users.fetch(closedBy.id).catch(() => null);
+
+        const closeEmbed = new EmbedBuilder()
+            .setColor(config.color)
+            .setTitle(`🔒 ${config.label} Closed`)
+            .addFields(
+                {
+                    name: '🆔 Ticket ID',
+                    value: `\`${ticketData.guildId}${ticketData.createdAt}${ticketData.num}\``
+                },
+                {
+                    name: '📌 Ticket Ref',
+                    value: `\`${channel.name}\``
+                },
+                {
+                    name: '🌐 Server',
+                    value: `\`${ticketData.guildId}\``
+                },
+                {
+                    name: '👤 Opened by',
+                    value: `${openedUser || `User#${ticketData.userId}`} at <t:${Math.floor(ticketData.createdAt / 1000)}:f>`
+                },
+                {
+                    name: '⏰ Closed by',
+                    value: `${closedByUser || `User#${closedBy.id}`} at <t:${Math.floor(Date.now() / 1000)}:f>`
+                },
+                {
+                    name: '📋 Reason',
+                    value: `\`\`\`${reason}\`\`\``
+                }
+            )
+            .setTimestamp();
+
+        const { ButtonBuilder, ButtonStyle, ActionRowBuilder: AR } = await import('discord.js');
+
         const webhook = await getOrCreateWebhook(client, guild, TICKET_LOG_CHANNEL);
-
         if (webhook) {
-            const buffer = Buffer.from(transcript, 'utf-8');
-            const file = new AttachmentBuilder(buffer, { name: `transcript-${channel.name}.txt` });
-
-            const openedUser = await client.users.fetch(ticketData.userId).catch(() => null);
-            const closedByUser = await client.users.fetch(closedBy.id).catch(() => null);
-
-            const closeEmbed = new EmbedBuilder()
-                .setColor(config.color)
-                .setTitle(`🔒 ${config.label} Closed`)
-                .addFields(
-                    { 
-                        name: '🆔 Ticket ID', 
-                        value: `\`${ticketData.guildId}${ticketData.createdAt}${ticketData.num}\`` 
-                    },
-                    { 
-                        name: '📌 Ticket Ref', 
-                        value: `\`${channel.name}\`` 
-                    },
-                    { 
-                        name: '🌐 Server', 
-                        value: `\`${ticketData.guildId}\`` 
-                    },
-                    { 
-                        name: '👤 Opened by', 
-                        value: `${openedUser || `User#${ticketData.userId}`} at <t:${Math.floor(ticketData.createdAt / 1000)}:f>` 
-                    },
-                    { 
-                        name: '⏰ Closed by', 
-                        value: `${closedByUser || `User#${closedBy.id}`} at <t:${Math.floor(Date.now() / 1000)}:f>` 
-                    },
-                    { 
-                        name: '📋 Reason', 
-                        value: `\`\`\`${reason}\`\`\`` 
-                    }
-                )
-                .setTimestamp();
-
-            const { ButtonBuilder, ButtonStyle, ActionRowBuilder: AR } = await import('discord.js');
             const sentMsg = await webhook.send({ embeds: [closeEmbed], files: [file] });
-
             const attachmentUrl = sentMsg?.attachments?.first?.()?.url;
             if (attachmentUrl) {
                 const row = new AR().addComponents(
@@ -427,6 +434,25 @@ export async function closeTicket(client, guild, channel, closedBy, reason = 'No
                         .setURL(attachmentUrl)
                 );
                 await webhook.editMessage(sentMsg.id, { components: [row] }).catch(() => {});
+            }
+        } else {
+            const logChannel = guild.channels.cache.get(TICKET_LOG_CHANNEL)
+                || await guild.channels.fetch(TICKET_LOG_CHANNEL).catch(() => null);
+            if (logChannel) {
+                const sentMsg = await logChannel.send({ embeds: [closeEmbed], files: [file] });
+                const attachmentUrl = sentMsg.attachments.first()?.url;
+                if (attachmentUrl) {
+                    const row = new AR().addComponents(
+                        new ButtonBuilder()
+                            .setLabel('Download Transcript')
+                            .setStyle(ButtonStyle.Link)
+                            .setEmoji('📄')
+                            .setURL(attachmentUrl)
+                    );
+                    await sentMsg.edit({ components: [row] }).catch(() => {});
+                }
+            } else {
+                logger.warn('[Tickets] Could not reach ticket log channel:', TICKET_LOG_CHANNEL);
             }
         }
     } catch (err) {
