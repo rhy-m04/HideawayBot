@@ -105,8 +105,24 @@ export default {
         } else if (interaction.isAutocomplete()) {
           // Handle autocomplete interactions
           const focusedOption = interaction.options.getFocused(true);
-          
-          if (interaction.commandName === 'reactroles' && focusedOption.name === 'panel') {
+
+          if (interaction.commandName === 'editdesc' && focusedOption.name === 'command') {
+            try {
+              const typed = focusedOption.value.toLowerCase();
+              const guildCommands = await interaction.guild.commands.fetch();
+              const choices = guildCommands
+                .filter(c => c.name.includes(typed))
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .first(25)
+                .map(c => ({
+                  name: `/${c.name} — ${c.description}`.substring(0, 100),
+                  value: c.name
+                }));
+              await interaction.respond(choices);
+            } catch {
+              await interaction.respond([]);
+            }
+          } else if (interaction.commandName === 'reactroles' && focusedOption.name === 'panel') {
             try {
               const { getAllReactionRoleMessages, deleteReactionRoleMessage } = await import('../services/reactionRoleService.js');
               const guildId = interaction.guildId;

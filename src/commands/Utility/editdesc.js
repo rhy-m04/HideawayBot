@@ -12,6 +12,7 @@ export default {
             opt.setName('command')
                 .setDescription('Name of the command to edit')
                 .setRequired(true)
+                .setAutocomplete(true)
         )
         .addStringOption(opt =>
             opt.setName('description')
