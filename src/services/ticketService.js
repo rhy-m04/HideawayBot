@@ -239,14 +239,6 @@ export async function createTicketChannel(client, guild, user, type, fields) {
             .setEmoji('🙋')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-            .setCustomId('ticket_close')
-            .setLabel('Close Ticket')
-            .setEmoji('🔒')
-            .setStyle(ButtonStyle.Danger)
-    );
-
-    const row2 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
             .setCustomId('ticket_transcript')
             .setLabel('Transcript')
             .setEmoji('📄')
@@ -254,9 +246,9 @@ export async function createTicketChannel(client, guild, user, type, fields) {
     );
 
     const controlMsg = await channel.send({
-        content: `<@${user.id}> Welcome! A staff member will be with you shortly.`,
+        content: `<@${user.id}> Welcome! A staff member will be with you shortly.\n> Use \`/ticket close <reason>\` to close this ticket.`,
         embeds: [embed],
-        components: [row1, row2]
+        components: [row1]
     });
 
     await controlMsg.pin().catch(() => {});

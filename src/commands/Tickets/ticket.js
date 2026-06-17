@@ -8,7 +8,7 @@ import {
     TextInputStyle,
     MessageFlags
 } from 'discord.js';
-import { getTicketData, updateTicketData, escalateTicket, addUserToTicket, removeUserFromTicket, addRoleToTicket, removeRoleFromTicket, ESCALATION_LEVELS } from '../../services/ticketService.js';
+import { getTicketData, updateTicketData, escalateTicket, closeTicket, addUserToTicket, removeUserFromTicket, addRoleToTicket, removeRoleFromTicket, ESCALATION_LEVELS } from '../../services/ticketService.js';
 import { logger } from '../../utils/logger.js';
 
 const MOD_ROLES = ['1511500082053120020', '1511500077137399928', '1511500080031469790'];
@@ -22,6 +22,16 @@ export default {
     data: new SlashCommandBuilder()
         .setName('ticket')
         .setDescription('Ticket management commands')
+        .addSubcommand(sub =>
+            sub.setName('close')
+                .setDescription('Close this ticket')
+                .addStringOption(opt =>
+                    opt.setName('reason')
+                        .setDescription('Reason for closing the ticket')
+                        .setRequired(true)
+                        .setMaxLength(1000)
+                )
+        )
         .addSubcommand(sub =>
             sub.setName('escalate')
                 .setDescription('Escalate this ticket to a higher level')
@@ -59,7 +69,33 @@ export default {
     async execute(interaction, guildConfig, client) {
         const sub = interaction.options.getSubcommand();
 
-        if (sub === 'escalate') {
+        if (sub === 'close') {
+            const ticket = await getTicketData(interaction.guildId, interaction.channelId);
+            if (!ticket) {
+                return interaction.reply({
+                    content: '❌ This command must be used inside a ticket channel.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            if (interaction.user.id !== ticket.userId && !isSupportStaff(interaction.member)) {
+                return interaction.reply({
+                    content: '❌ Only the ticket owner or staff can close this ticket.',
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            const reason = interaction.options.getString('reason');
+
+            await interaction.reply({ content: '🔒 Saving transcript and closing ticket...', flags: MessageFlags.Ephemeral });
+
+            try {
+                await closeTicket(client, interaction.guild, interaction.channel, interaction.user, reason);
+            } catch (err) {
+                logger.error('[Tickets] closeTicket error:', err.message);
+            }
+
+        } else if (sub === 'escalate') {
             if (!isSupportStaff(interaction.member)) {
                 return interaction.reply({
                     content: '❌ Only staff can escalate tickets.',
