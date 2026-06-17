@@ -235,7 +235,7 @@ export async function createTicketChannel(client, guild, user, type, fields) {
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('ticket_claim')
-            .setLabel('Claim Ticket')
+            .setLabel('Claim')
             .setEmoji('🙋')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
@@ -254,7 +254,7 @@ export async function createTicketChannel(client, guild, user, type, fields) {
     );
 
     const controlMsg = await channel.send({
-        content: `<@${user.id}> Thanks for opening a ticket. Someone from our Moderation Team will be here to help you shortly.`,
+        content: `<@${user.id}> Welcome! A staff member will be with you shortly.`,
         embeds: [embed],
         components: [row1, row2]
     });
@@ -349,61 +349,83 @@ export async function generateTranscript(channel) {
 }
 
 function msToHuman(ms) {
-    const logChannel = await guild.channels.fetch(TICKET_LOG_CHANNEL).catch(() => null);
-if (!logChannel || !logChannel.isTextBased()) return;
-
-const buffer = Buffer.from(transcript, 'utf-8');
-const file = new AttachmentBuilder(buffer, {
-    name: `transcript-${channel.name}.txt`
-});
-
-const openedUser = await client.users.fetch(ticketData.userId).catch(() => null);
-const closedByUser = await client.users.fetch(closedBy.id).catch(() => null);
-
-const closeEmbed = new EmbedBuilder()
-    .setColor(config.color)
-    .setTitle(`🔒 ${config.label} Closed`)
-    .addFields(
-        {
-            name: '🆔 Ticket ID',
-            value: `\`${ticketData.guildId}${ticketData.createdAt}${ticketData.num}\``
-        },
-        {
-            name: '📌 Ticket Ref',
-            value: `\`${channel.name}\``
-        },
-        {
-            name: '👤 Opened by',
-            value: `${openedUser ? openedUser.tag : `UserID: ${ticketData.userId}`} - <t:${Math.floor(ticketData.createdAt / 1000)}:f>`
-        },
-        {
-            name: '⏰ Closed by',
-            value: `${closedByUser ? closedByUser.tag : `UserID: ${closedBy.id}`} - <t:${Math.floor(Date.now() / 1000)}:f>`
-        },
-        {
-            name: '📋 Reason',
-            value: `\`\`\`${reason}\`\`\``
-        }
-    )
-    .setTimestamp();
-
-const sentMsg = await logChannel.send({
-    embeds: [closeEmbed],
-    files: [file]
-});
-
-const attachmentUrl = sentMsg.attachments.first()?.url;
-if (attachmentUrl) {
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setLabel('Download Transcript')
-            .setStyle(ButtonStyle.Link)
-            .setEmoji('📄')
-            .setURL(attachmentUrl)
-    );
-
-    await sentMsg.edit({ components: [row] }).catch(() => {});
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ${s % 60}s`;
+    const h = Math.floor(m / 60);
+    return `${h}h ${m % 60}m`;
 }
+
+const TICKET_LOG_CHANNEL = '1514063621712515213';
+
+export async function closeTicket(client, guild, channel, closedBy, reason = 'No reason provided') {
+    const ticketData = await getTicketData(guild.id, channel.id);
+    if (!ticketData) return;
+
+    await updateTicketData(guild.id, channel.id, {
+        status: 'closed',
+        closedAt: Date.now(),
+        closedBy: closedBy.id,
+        closeReason: reason
+    });
+    await clearActiveTicket(guild.id, ticketData.userId, ticketData.type);
+
+    try {
+        const transcript = await generateTranscript(channel);
+        const config = TICKET_TYPES[ticketData.type];
+        const webhook = await getOrCreateWebhook(client, guild, TICKET_LOG_CHANNEL);
+
+        if (webhook) {
+            const buffer = Buffer.from(transcript, 'utf-8');
+            const file = new AttachmentBuilder(buffer, { name: `transcript-${channel.name}.txt` });
+
+            const openedUser = await client.users.fetch(ticketData.userId).catch(() => null);
+            const closedByUser = await client.users.fetch(closedBy.id).catch(() => null);
+
+            const closeEmbed = new EmbedBuilder()
+                .setColor(config.color)
+                .setTitle(`🔒 ${config.label} Closed`)
+                .addFields(
+                    { 
+                        name: '🆔 Ticket ID', 
+                        value: `\`${ticketData.guildId}${ticketData.createdAt}${ticketData.num}\`` 
+                    },
+                    { 
+                        name: '📌 Ticket Ref', 
+                        value: `\`${channel.name}\`` 
+                    },
+                    { 
+                        name: '🌐 Server', 
+                        value: `\`${ticketData.guildId}\`` 
+                    },
+                    { 
+                        name: '👤 Opened by', 
+                        value: `${openedUser || `User#${ticketData.userId}`} at <t:${Math.floor(ticketData.createdAt / 1000)}:f>` 
+                    },
+                    { 
+                        name: '⏰ Closed by', 
+                        value: `${closedByUser || `User#${closedBy.id}`} at <t:${Math.floor(Date.now() / 1000)}:f>` 
+                    },
+                    { 
+                        name: '📋 Reason', 
+                        value: `\`\`\`${reason}\`\`\`` 
+                    }
+                )
+                .setTimestamp();
+
+            const { ButtonBuilder, ButtonStyle, ActionRowBuilder: AR } = await import('discord.js');
+            const sentMsg = await webhook.send({ embeds: [closeEmbed], files: [file] });
+
+            const attachmentUrl = sentMsg?.attachments?.first?.()?.url;
+            if (attachmentUrl) {
+                const row = new AR().addComponents(
+                    new ButtonBuilder()
+                        .setLabel('Download Transcript')
+                        .setStyle(ButtonStyle.Link)
+                        .setEmoji('📄')
+                        .setURL(attachmentUrl)
+                );
                 await webhook.editMessage(sentMsg.id, { components: [row] }).catch(() => {});
             }
         }
@@ -512,3 +534,5 @@ export async function escalateTicket(client, guild, channel, ticketData, escalat
         escalatedAt: Date.now()
     });
 }
+
+
