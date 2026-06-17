@@ -228,8 +228,6 @@ export async function createTicketChannel(client, guild, user, type, fields) {
     await setInDb(getTicketKey(guild.id, channel.id), ticketData);
     await setActiveTicket(guild.id, user.id, type, channel.id);
 
-    sendOpenLog(client, guild, type, user, ticketData, channel, ticketNum).catch(() => {});
-
     const embed = buildTicketEmbed(ticketData, user, config);
 
     const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
@@ -394,11 +392,11 @@ export async function closeTicket(client, guild, channel, closedBy, reason = 'No
             .addFields(
                 {
                     name: '🆔 Ticket ID',
-                    value: `\`${ticketData.guildId}${ticketData.createdAt}${ticketData.num}\``
+                    value: `\`${channel.name}\``
                 },
                 {
-                    name: '📌 Ticket Ref',
-                    value: `\`${channel.name}\``
+                    name: '🔢 Channel ID',
+                    value: `\`${channel.id}\``
                 },
                 {
                     name: '🌐 Server',
@@ -419,38 +417,14 @@ export async function closeTicket(client, guild, channel, closedBy, reason = 'No
             )
             .setTimestamp();
 
-        const { ButtonBuilder, ButtonStyle, ActionRowBuilder: AR } = await import('discord.js');
-
         const webhook = await getOrCreateWebhook(client, guild, TICKET_LOG_CHANNEL);
         if (webhook) {
-            const sentMsg = await webhook.send({ embeds: [closeEmbed], files: [file] });
-            const attachmentUrl = sentMsg?.attachments?.first?.()?.url;
-            if (attachmentUrl) {
-                const row = new AR().addComponents(
-                    new ButtonBuilder()
-                        .setLabel('Download Transcript')
-                        .setStyle(ButtonStyle.Link)
-                        .setEmoji('📄')
-                        .setURL(attachmentUrl)
-                );
-                await webhook.editMessage(sentMsg.id, { components: [row] }).catch(() => {});
-            }
+            await webhook.send({ embeds: [closeEmbed], files: [file] });
         } else {
             const logChannel = guild.channels.cache.get(TICKET_LOG_CHANNEL)
                 || await guild.channels.fetch(TICKET_LOG_CHANNEL).catch(() => null);
             if (logChannel) {
-                const sentMsg = await logChannel.send({ embeds: [closeEmbed], files: [file] });
-                const attachmentUrl = sentMsg.attachments.first()?.url;
-                if (attachmentUrl) {
-                    const row = new AR().addComponents(
-                        new ButtonBuilder()
-                            .setLabel('Download Transcript')
-                            .setStyle(ButtonStyle.Link)
-                            .setEmoji('📄')
-                            .setURL(attachmentUrl)
-                    );
-                    await sentMsg.edit({ components: [row] }).catch(() => {});
-                }
+                await logChannel.send({ embeds: [closeEmbed], files: [file] });
             } else {
                 logger.warn('[Tickets] Could not reach ticket log channel:', TICKET_LOG_CHANNEL);
             }
