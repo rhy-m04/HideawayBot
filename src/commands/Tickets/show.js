@@ -101,7 +101,7 @@ export default {
                     `Welcome to **The Hideaway**!\n\n` +
                     `To gain full access to the server, you'll need to verify your account.\n\n` +
                     `Press **Verify** below to receive the Member role and unlock the rest of the server.\n\n` +
-                    `If you have a Google account linked to our community, press **Link Google Email** to connect it and receive any roles tied to your Google Groups.`
+                    `**Google Groups:** Press **Link Google Email** to connect your Gmail, then press **Check Google Groups** to see which community Google Groups you should join based on your roles.`
                 )
                 .setFooter({ text: 'The Hideaway • Verification' });
 
@@ -115,6 +115,11 @@ export default {
                     .setCustomId('link_google_email')
                     .setLabel('Link Google Email')
                     .setEmoji('📧')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('google_link_check')
+                    .setLabel('Check Google Groups')
+                    .setEmoji('🔗')
                     .setStyle(ButtonStyle.Secondary)
             );
 
