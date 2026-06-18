@@ -1,5 +1,6 @@
 import {
     AudioPlayerStatus,
+    StreamType,
     VoiceConnectionStatus,
     createAudioPlayer,
     createAudioResource,
@@ -8,6 +9,7 @@ import {
     joinVoiceChannel,
     NoSubscriberBehavior
 } from '@discordjs/voice';
+import { spawn } from 'child_process';
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { logger } from '../utils/logger.js';
 
@@ -229,10 +231,22 @@ class GuildMusicPlayer {
         this.startedAt = Date.now();
 
         try {
-            const play = await getPlay();
-            const stream = await play.stream(track.url, { quality: 2 });
-            const resource = createAudioResource(stream.stream, {
-                inputType: stream.type,
+            const ytdlp = spawn('yt-dlp', [
+                '-f', 'bestaudio/best',
+                '--no-playlist',
+                '-o', '-',
+                '--quiet',
+                '--no-warnings',
+                track.url
+            ]);
+
+            ytdlp.stderr.on('data', d => {
+                const msg = d.toString().trim();
+                if (msg) logger.debug(`[yt-dlp:${this.guildId}] ${msg}`);
+            });
+
+            const resource = createAudioResource(ytdlp.stdout, {
+                inputType: StreamType.Arbitrary,
                 inlineVolume: true
             });
             resource.volume?.setVolumeLogarithmic(this.volume / 100);
