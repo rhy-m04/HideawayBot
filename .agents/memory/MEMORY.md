@@ -1,0 +1,1 @@
+- [Music streaming fix](music-streaming-fix.md) — play-dl stream() broken by YouTube; replaced with yt-dlp --get-url + ffmpeg PCM pipe; tweetnacl required for voice encryption.

@@ -9,7 +9,9 @@ import {
     joinVoiceChannel,
     NoSubscriberBehavior
 } from '@discordjs/voice';
-import { spawn } from 'child_process';
+import { spawn, execFile } from 'child_process';
+import { promisify } from 'util';
+const execFileAsync = promisify(execFile);
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { logger } from '../utils/logger.js';
 
@@ -231,22 +233,41 @@ class GuildMusicPlayer {
         this.startedAt = Date.now();
 
         try {
-            const ytdlp = spawn('yt-dlp', [
-                '-f', 'bestaudio/best',
+            // Step 1: resolve direct audio URL via yt-dlp
+            const { stdout: urlOut } = await execFileAsync('yt-dlp', [
+                '-f', 'bestaudio[ext=webm]/bestaudio/best',
+                '--get-url',
                 '--no-playlist',
-                '-o', '-',
                 '--quiet',
                 '--no-warnings',
                 track.url
-            ]);
+            ], { timeout: 20000 });
 
-            ytdlp.stderr.on('data', d => {
+            const audioUrl = urlOut.trim().split('\n')[0];
+            if (!audioUrl) throw new Error('yt-dlp returned no stream URL');
+
+            // Step 2: pipe through ffmpeg → raw PCM (s16le, 48kHz stereo)
+            // StreamType.Raw lets @discordjs/voice apply inlineVolume on raw PCM
+            const ffmpegProc = spawn('ffmpeg', [
+                '-reconnect', '1',
+                '-reconnect_streamed', '1',
+                '-reconnect_delay_max', '5',
+                '-i', audioUrl,
+                '-vn',
+                '-f', 's16le',
+                '-ar', '48000',
+                '-ac', '2',
+                '-loglevel', 'error',
+                'pipe:1'
+            ], { stdio: ['ignore', 'pipe', 'pipe'] });
+
+            ffmpegProc.stderr.on('data', d => {
                 const msg = d.toString().trim();
-                if (msg) logger.debug(`[yt-dlp:${this.guildId}] ${msg}`);
+                if (msg) logger.debug(`[ffmpeg:${this.guildId}] ${msg}`);
             });
 
-            const resource = createAudioResource(ytdlp.stdout, {
-                inputType: StreamType.Arbitrary,
+            const resource = createAudioResource(ffmpegProc.stdout, {
+                inputType: StreamType.Raw,
                 inlineVolume: true
             });
             resource.volume?.setVolumeLogarithmic(this.volume / 100);
