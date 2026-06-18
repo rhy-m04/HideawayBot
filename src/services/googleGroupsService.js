@@ -2,6 +2,48 @@ import { google } from 'googleapis';
 import { logger } from '../utils/logger.js';
 import { getFromDb, setInDb, deleteFromDb } from '../utils/database.js';
 
+const USER_EMAIL_KEY = (userId) => `user:${userId}:google_email`;
+const STAFF_ROLES_KEY = (guildId) => `guild:${guildId}:googlegroups:staffRoles`;
+
+export async function setUserGoogleEmail(userId, email) {
+    await setInDb(USER_EMAIL_KEY(userId), email.toLowerCase().trim());
+}
+
+export async function getUserGoogleEmail(userId) {
+    return await getFromDb(USER_EMAIL_KEY(userId), null);
+}
+
+export async function removeUserGoogleEmail(userId) {
+    await deleteFromDb(USER_EMAIL_KEY(userId));
+}
+
+export async function getStaffRoles(guildId) {
+    const data = await getFromDb(STAFF_ROLES_KEY(guildId), []);
+    return Array.isArray(data) ? data : [];
+}
+
+export async function addStaffRole(guildId, roleId) {
+    const roles = await getStaffRoles(guildId);
+    if (!roles.includes(roleId)) {
+        roles.push(roleId);
+        await setInDb(STAFF_ROLES_KEY(guildId), roles);
+    }
+    return roles;
+}
+
+export async function removeStaffRole(guildId, roleId) {
+    const roles = await getStaffRoles(guildId);
+    const filtered = roles.filter(r => r !== roleId);
+    await setInDb(STAFF_ROLES_KEY(guildId), filtered);
+    return filtered;
+}
+
+export async function canUseGoogleUpdate(member, guildId) {
+    if (member.permissions.has('ManageRoles')) return true;
+    const staffRoles = await getStaffRoles(guildId);
+    return staffRoles.some(roleId => member.roles.cache.has(roleId));
+}
+
 const MAPPINGS_KEY = (guildId) => `guild:${guildId}:googlegroups:mappings`;
 const SYNC_LOG_KEY = (guildId) => `guild:${guildId}:googlegroups:lastSync`;
 

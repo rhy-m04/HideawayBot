@@ -100,7 +100,8 @@ export default {
                 .setDescription(
                     `Welcome to **The Hideaway**!\n\n` +
                     `To gain full access to the server, you'll need to verify your account.\n\n` +
-                    `Press **Verify** below to receive the Member role and unlock the rest of the server.`
+                    `Press **Verify** below to receive the Member role and unlock the rest of the server.\n\n` +
+                    `If you have a Google account linked to our community, press **Link Google Email** to connect it and receive any roles tied to your Google Groups.`
                 )
                 .setFooter({ text: 'The Hideaway • Verification' });
 
@@ -109,7 +110,12 @@ export default {
                     .setCustomId('verify')
                     .setLabel('Verify')
                     .setEmoji('☑️')
-                    .setStyle(ButtonStyle.Success)
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId('link_google_email')
+                    .setLabel('Link Google Email')
+                    .setEmoji('📧')
+                    .setStyle(ButtonStyle.Secondary)
             );
 
             await interaction.reply({ content: '✅ Verification panel posted.', flags: MessageFlags.Ephemeral });
