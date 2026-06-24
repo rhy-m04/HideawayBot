@@ -1,6 +1,6 @@
 import { PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
-import { setInDb } from '../../utils/database.js';
+import { setInDb, getFromDb } from '../../utils/database.js';
 import { RANK_HIERARCHY, EXEMPT_RANKS, ALL_MANAGED_RANK_IDS } from '../../commands/Moderation/rank.js';
 
 const LOG_CHANNEL_ID = '1513670232911122482';
@@ -115,7 +115,7 @@ export default {
                 }
                 await member.roles.add(role, `Rank set by ${interaction.user.tag}`);
 
-                await setInDb(`rank_last_change_${guild.id}_${userId}`, {
+                const addEntry = {
                     roleName: role.name,
                     roleId: role.id,
                     issuerId: interaction.user.id,
@@ -123,14 +123,19 @@ export default {
                     timestamp: Date.now(),
                     reason,
                     action: 'add'
-                });
+                };
+                await setInDb(`rank_last_change_${guild.id}_${userId}`, addEntry);
+                const addHistory = await getFromDb(`rank_history_${guild.id}_${userId}`, []);
+                addHistory.push(addEntry);
+                if (addHistory.length > 50) addHistory.splice(0, addHistory.length - 50);
+                await setInDb(`rank_history_${guild.id}_${userId}`, addHistory);
             } else {
                 if (!member.roles.cache.has(roleId)) {
                     return interaction.followUp({ content: `⚠️ ${member.toString()} does not have the ${role.toString()} role.`, ephemeral: true });
                 }
                 await member.roles.remove(role, `Derank by ${interaction.user.tag}`);
 
-                await setInDb(`rank_last_change_${guild.id}_${userId}`, {
+                const removeEntry = {
                     roleName: role.name,
                     roleId: role.id,
                     issuerId: interaction.user.id,
@@ -138,7 +143,12 @@ export default {
                     timestamp: Date.now(),
                     reason,
                     action: 'remove'
-                });
+                };
+                await setInDb(`rank_last_change_${guild.id}_${userId}`, removeEntry);
+                const removeHistory = await getFromDb(`rank_history_${guild.id}_${userId}`, []);
+                removeHistory.push(removeEntry);
+                if (removeHistory.length > 50) removeHistory.splice(0, removeHistory.length - 50);
+                await setInDb(`rank_history_${guild.id}_${userId}`, removeHistory);
             }
 
             await sendRankLog(guild, client, { targetUser: member.user, role, removedRoles, issuer, reason, authorisation, action, status: 'SUCCESS' });

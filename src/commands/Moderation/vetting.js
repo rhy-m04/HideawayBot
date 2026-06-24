@@ -10,6 +10,7 @@ import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { getModerationCases } from '../../utils/moderation.js';
 import { getFromDb, setInDb } from '../../utils/database.js';
+import { getUserGoogleEmail, getMappings } from '../../services/googleGroupsService.js';
 
 const LEVEL_PREFIX = {
     Moderation: 'MOD',
@@ -81,11 +82,24 @@ async function handleVettingCheck(interaction, client) {
 
     const levelPrefix = LEVEL_PREFIX[level] || level.slice(0, 3).toUpperCase();
     const userPrefix = targetUser.username.slice(0, 3).toUpperCase();
+
+    const vettingCountKey = `vetting_count_${guild.id}_${targetUser.id}`;
+    const currentCount = await getFromDb(vettingCountKey, 0);
+    const newCount = currentCount + 1;
+    await setInDb(vettingCountKey, newCount);
+
+    const vettingId = `${levelPrefix}//${userPrefix}//${newCount}//${targetUser.id}`;
     const shortId = `${Date.now().toString(36).toUpperCase()}`;
-    const vettingId = `${levelPrefix}//${userPrefix}-${targetUser.id}`;
 
     const now = Date.now();
-    const cases = await getModerationCases(guild.id, { userId: targetUser.id, limit: 100 });
+
+    const [cases, notes, rankHistory, googleEmail, googleMappings] = await Promise.all([
+        getModerationCases(guild.id, { userId: targetUser.id, limit: 100 }),
+        getFromDb(`moderation_user_notes_${guild.id}_${targetUser.id}`, []),
+        getFromDb(`rank_history_${guild.id}_${targetUser.id}`, []),
+        getUserGoogleEmail(targetUser.id),
+        getMappings(guild.id),
+    ]);
 
     const activeCases = cases.filter(c => {
         const expiry = c.metadata?.expiryDate || c.metadata?.timeoutEnds;
@@ -93,30 +107,47 @@ async function handleVettingCheck(interaction, client) {
         return new Date(expiry).getTime() > now;
     });
 
-    const expiredCases = cases.filter(c => {
-        const expiry = c.metadata?.expiryDate || c.metadata?.timeoutEnds;
-        return expiry && new Date(expiry).getTime() <= now;
-    });
+    const activeSanctionsText = activeCases.length > 0
+        ? activeCases.slice(0, 5).map(c => {
+            const expiry = c.metadata?.expiryDate || c.metadata?.timeoutEnds;
+            const expiryText = expiry
+                ? `\n  - Expires: <t:${Math.floor(new Date(expiry).getTime() / 1000)}:R>`
+                : '';
+            return `- **${c.action}** — ${(c.reason || 'No reason').slice(0, 80)}${expiryText}`;
+        }).join('\n')
+        : '- No active sanctions';
 
-    const notes = await getFromDb(`moderation_user_notes_${guild.id}_${targetUser.id}`, []);
-    const lastRankChange = await getFromDb(`rank_last_change_${guild.id}_${targetUser.id}`, null);
-
-    const activeCasesText = activeCases.length > 0
-        ? activeCases.slice(0, 5).map(c => `• **${c.action}** — ${(c.reason || 'No reason').slice(0, 60)}`).join('\n')
-        : 'None';
-
-    const expiredCasesText = expiredCases.length > 0
-        ? expiredCases.slice(0, 5).map(c => `• **${c.action}** — ${(c.reason || 'No reason').slice(0, 60)}`).join('\n')
-        : 'None';
+    const rankChangesText = rankHistory.length > 0
+        ? rankHistory.slice(-8).reverse().map(r => {
+            const action = r.action === 'add' ? 'Added' : 'Removed';
+            return `- **${r.roleName}** ${action} — Issued by: <@${r.issuerId}> at <t:${Math.floor(r.timestamp / 1000)}:D>`;
+        }).join('\n')
+        : '- No rank changes';
 
     const noteTypeLabel = { warning: '⚠️ Warning', positive: '✅ Positive', neutral: '📝 Neutral', alert: '🚨 Alert' };
     const notesText = Array.isArray(notes) && notes.length > 0
         ? notes.slice(0, 5).map(n => {
             const label = noteTypeLabel[n.type] || '📝 Note';
-            const content = (n.content || n.note || '').slice(0, 80);
-            return `• ${label} -- ${content}`;
+            const content = (n.content || n.note || '').slice(0, 100);
+            return `- ${content} — Added by <@${n.authorId || 'Unknown'}>\n  -- ${label}`;
           }).join('\n')
-        : 'None';
+        : '- No internal notes';
+
+    const linkedEmail = googleEmail || null;
+    const linkedGroups = linkedEmail
+        ? googleMappings
+            .filter(m => member?.roles.cache.has(m.roleId))
+            .map(m => `\`${m.groupEmail}\``)
+        : [];
+
+    const googleGroupsText = [
+        `- Account Linked? ${linkedEmail ? `✅ \`${linkedEmail}\`` : '❌'}`,
+        linkedEmail && linkedGroups.length > 0
+            ? `- Groups: ${linkedGroups.join(', ')}`
+            : linkedEmail
+                ? '- No groups mapped to current roles'
+                : null,
+    ].filter(Boolean).join('\n');
 
     const joinDate = member?.joinedAt
         ? `<t:${Math.floor(member.joinedAt.getTime() / 1000)}:F>`
@@ -124,13 +155,10 @@ async function handleVettingCheck(interaction, client) {
 
     const accountCreated = `<t:${Math.floor(targetUser.createdAt.getTime() / 1000)}:F>`;
 
-    const lastRankText = lastRankChange
-        ? `${lastRankChange.roleName} — by <@${lastRankChange.issuerId}> on <t:${Math.floor(lastRankChange.timestamp / 1000)}:D>`
-        : 'Not tracked';
-
     await setInDb(`vetting_${shortId}`, {
         level,
         vettingId,
+        vettingCount: newCount,
         targetUserId: targetUser.id,
         targetUserTag: targetUser.tag,
         requestingMemberId: requestingMember.id,
@@ -143,16 +171,45 @@ async function handleVettingCheck(interaction, client) {
 
     const embed = new EmbedBuilder()
         .setColor(0x5865F2)
-        .setTitle(`Vetting Request – ${level}`)
-        .setDescription(`<@${targetUser.id}> — ${targetUser.id}`)
+        .setAuthor({ name: 'Hideaway Moderation Team' })
+        .setTitle(`${level} Vetting Check`)
+        .setDescription(
+            `> Vetting Level: ${level}\n` +
+            `> Authorisation: <@${requestingMember.id}> — \`${requestingMember.id}\`\n` +
+            `> Reason: ${reason}`
+        )
         .addFields(
-            { name: '📊 Messages Sent', value: 'Not tracked', inline: true },
-            { name: '📅 Date Joined Server', value: joinDate, inline: true },
-            { name: '🗓️ Account Created', value: accountCreated, inline: true },
-            { name: '🔴 Active Moderation Actions', value: activeCasesText },
-            { name: '⚫ Expired Moderation Actions', value: expiredCasesText },
-            { name: '🎖️ Last Rank Change via /rank', value: lastRankText },
-            { name: '📝 Staff Notes', value: notesText }
+            {
+                name: 'Member Information',
+                value: `👤 <@${targetUser.id}> / \`${targetUser.id}\``,
+                inline: true
+            },
+            {
+                name: 'Server Join Date',
+                value: `📅 ${joinDate}`,
+                inline: true
+            },
+            {
+                name: 'Account Creation',
+                value: `📅 ${accountCreated}`,
+                inline: true
+            },
+            {
+                name: '⚠️ Active Moderation Sanctions',
+                value: activeSanctionsText
+            },
+            {
+                name: '🥇 Rank Changes',
+                value: rankChangesText
+            },
+            {
+                name: '📋 Google Groups',
+                value: googleGroupsText
+            },
+            {
+                name: '🗒️ Internal Notes',
+                value: notesText
+            }
         )
         .setFooter({ text: `Vetting ID: ${vettingId}` })
         .setTimestamp();
