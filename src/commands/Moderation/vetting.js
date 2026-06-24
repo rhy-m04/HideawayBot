@@ -101,19 +101,16 @@ async function handleVettingCheck(interaction, client) {
         getMappings(guild.id),
     ]);
 
-    const activeCases = cases.filter(c => {
-        const expiry = c.metadata?.expiryDate || c.metadata?.timeoutEnds;
-        if (!expiry) return true;
-        return new Date(expiry).getTime() > now;
-    });
-
-    const activeSanctionsText = activeCases.length > 0
-        ? activeCases.slice(0, 5).map(c => {
+    const activeSanctionsText = cases.length > 0
+        ? cases.slice(0, 10).map(c => {
             const expiry = c.metadata?.expiryDate || c.metadata?.timeoutEnds;
+            const isExpired = expiry && new Date(expiry).getTime() <= now;
             const expiryText = expiry
-                ? `\n  - Expires: <t:${Math.floor(new Date(expiry).getTime() / 1000)}:R>`
+                ? isExpired
+                    ? ` *(expired <t:${Math.floor(new Date(expiry).getTime() / 1000)}:R>)*`
+                    : ` — Expires: <t:${Math.floor(new Date(expiry).getTime() / 1000)}:R>`
                 : '';
-            return `- **${c.action}** — ${(c.reason || 'No reason').slice(0, 80)}${expiryText}`;
+            return `• **${c.action}** — ${(c.reason || 'No reason').slice(0, 80)}${expiryText}`;
         }).join('\n')
         : '- No active sanctions';
 
@@ -137,15 +134,18 @@ async function handleVettingCheck(interaction, client) {
     const linkedGroups = linkedEmail
         ? googleMappings
             .filter(m => member?.roles.cache.has(m.roleId))
-            .map(m => `\`${m.groupEmail}\``)
+            .map(m => {
+                const name = m.groupName && m.groupName !== m.groupEmail ? m.groupName : m.groupEmail;
+                return `• ${name} — \`${m.groupEmail}\``;
+            })
         : [];
 
     const googleGroupsText = [
         `- Account Linked? ${linkedEmail ? `✅ \`${linkedEmail}\`` : '❌'}`,
         linkedEmail && linkedGroups.length > 0
-            ? `- Groups: ${linkedGroups.join(', ')}`
+            ? linkedGroups.join('\n')
             : linkedEmail
-                ? '- No groups mapped to current roles'
+                ? '• No groups mapped to current roles'
                 : null,
     ].filter(Boolean).join('\n');
 
