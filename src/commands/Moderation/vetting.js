@@ -131,23 +131,21 @@ async function handleVettingCheck(interaction, client) {
         : '- No internal notes';
 
     const linkedEmail = googleEmail || null;
-    const linkedGroups = linkedEmail
-        ? googleMappings
-            .filter(m => member?.roles.cache.has(m.roleId))
-            .map(m => {
-                const name = m.groupName && m.groupName !== m.groupEmail ? m.groupName : m.groupEmail;
-                return `• ${name} — \`${m.groupEmail}\``;
-            })
-        : [];
 
-    const googleGroupsText = [
-        `- Account Linked? ${linkedEmail ? `✅ \`${linkedEmail}\`` : '❌'}`,
-        linkedEmail && linkedGroups.length > 0
-            ? linkedGroups.join('\n')
-            : linkedEmail
-                ? '• No groups mapped to current roles'
-                : null,
-    ].filter(Boolean).join('\n');
+    let googleGroupsText;
+    if (!googleMappings.length) {
+        googleGroupsText = `- Account Linked? ${linkedEmail ? `✅ \`${linkedEmail}\`` : '❌'}\n• No Google Groups configured — use \`/googlegroups map\` to set up mappings`;
+    } else {
+        const groupLines = googleMappings.map(m => {
+            const name = m.groupName && m.groupName !== m.groupEmail ? m.groupName : m.groupEmail;
+            const hasRole = member?.roles?.cache?.has(m.roleId) ?? false;
+            return `• ${hasRole ? '✅' : '❌'} **${name}** — \`${m.groupEmail}\``;
+        });
+        googleGroupsText = [
+            `- Account Linked? ${linkedEmail ? `✅ \`${linkedEmail}\`` : '❌'}`,
+            ...groupLines,
+        ].join('\n');
+    }
 
     const joinDate = member?.joinedAt
         ? `<t:${Math.floor(member.joinedAt.getTime() / 1000)}:F>`
