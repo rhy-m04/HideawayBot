@@ -5,22 +5,31 @@ import { logger } from '../../utils/logger.js';
 
 export default {
   data: new SlashCommandBuilder()
-    .setName('roleincome')
-    .setDescription('Manage role-based income for this server (owner/admin only)')
-    .addSubcommand(sub => sub
-      .setName('add')
-      .setDescription('Add income to a role')
-      .addRoleOption(o => o.setName('role').setDescription('Role to award income').setRequired(true))
-      .addIntegerOption(o => o.setName('amount').setDescription('Income amount per claim').setRequired(true))
-    )
-    .addSubcommand(sub => sub
-      .setName('remove')
-      .setDescription('Remove income for a role')
-      .addRoleOption(o => o.setName('role').setDescription('Role to remove').setRequired(true))
-    )
-    .addSubcommand(sub => sub
-      .setName('list')
-      .setDescription('List role incomes configured in this server')),
+    .setName('role')
+    .setDescription('Role management commands')
+    .addSubcommandGroup(group =>
+      group
+        .setName('income')
+        .setDescription('Manage role-based income for this server (owner/admin only)')
+        .addSubcommand(sub =>
+          sub
+            .setName('add')
+            .setDescription('Add income to a role')
+            .addRoleOption(o => o.setName('role').setDescription('Role to award income').setRequired(true))
+            .addIntegerOption(o => o.setName('amount').setDescription('Income amount per claim').setRequired(true))
+        )
+        .addSubcommand(sub =>
+          sub
+            .setName('remove')
+            .setDescription('Remove income for a role')
+            .addRoleOption(o => o.setName('role').setDescription('Role to remove').setRequired(true))
+        )
+        .addSubcommand(sub =>
+          sub
+            .setName('list')
+            .setDescription('List role incomes configured in this server')
+        )
+    ),
   category: 'Economy',
 
   async execute(interaction, config, client) {
@@ -39,7 +48,14 @@ export default {
         return;
       }
 
-      const sub = interaction.options.getSubcommand();
+      const group = interaction.options.getSubcommandGroup(false);
+      const sub = interaction.options.getSubcommand(false);
+
+      if (group !== 'income') {
+        await InteractionHelper.safeEditReply(interaction, { content: 'Unknown role management group.' });
+        return;
+      }
+
       const cfg = await getGuildConfig(client, guildId);
       const roleIncome = cfg.roleIncome || {};
 
@@ -82,7 +98,7 @@ export default {
         return;
       }
     } catch (err) {
-      logger.error('roleincome command error:', err);
+      logger.error('role income command error:', err);
       await InteractionHelper.safeEditReply(interaction, { content: 'An error occurred while updating role incomes.' });
     }
   }
