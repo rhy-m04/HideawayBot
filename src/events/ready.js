@@ -1,5 +1,6 @@
 import { Events } from "discord.js";
 import { logger, startupLog } from "../utils/logger.js";
+import { logCommandLoadSummary } from '../utils/commandDiagnostics.js';
 import config from "../config/application.js";
 import { reconcileReactionRoleMessages } from "../services/reactionRoleService.js";
 import { getFromDb, setInDb } from "../utils/database.js";
@@ -15,6 +16,9 @@ export default {
       startupLog(`Ready! Logged in as ${client.user.tag}`);
       startupLog(`Serving ${client.guilds.cache.size} guild(s)`);
       startupLog(`Loaded ${client.commands.size} commands`);
+
+      // Diagnostics: log command load summary (invalid entries, counts)
+      try { logCommandLoadSummary(client); } catch (e) { logger.warn('command diagnostics failed', e); }
 
       const reconciliationSummary = await reconcileReactionRoleMessages(client);
       startupLog(
@@ -53,5 +57,3 @@ export default {
     }
   },
 };
-
-
