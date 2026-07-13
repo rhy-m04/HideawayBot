@@ -3,6 +3,7 @@ import { logger } from '../utils/logger.js';
 import { getLevelingConfig, getUserLevelData } from '../services/leveling.js';
 import { addXp } from '../services/xpSystem.js';
 import { checkRateLimit } from '../utils/rateLimiter.js';
+import { handlePrefixEconomy } from '../handlers/prefixCommands/economyPrefix.js';
 
 const MESSAGE_XP_RATE_LIMIT_ATTEMPTS = 12;
 const MESSAGE_XP_RATE_LIMIT_WINDOW_MS = 10000;
@@ -59,6 +60,14 @@ export default {
   async execute(message, client) {
     try {
       if (message.author.bot || !message.guild) return;
+
+      // Prefix-based economy command handling (quick shim)
+      try {
+        const handled = await handlePrefixEconomy(message, client);
+        if (handled) return; // prefix command responded
+      } catch (err) {
+        logger.warn('Prefix economy handler error:', err?.message || err);
+      }
 
       const isMentioned = message.mentions.has(client.user.id);
 
