@@ -7,11 +7,6 @@ import { pgConfig } from "./postgres.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
-
-
-
-
 const appConfig = {
   paths: {
     root: path.join(__dirname, "../.."),
@@ -28,7 +23,8 @@ const appConfig = {
     ...botConfig,
     token: process.env.DISCORD_TOKEN || process.env.TOKEN,
     clientId: process.env.CLIENT_ID,
-    guildId: process.env.GUILD_ID,
+    // Guild ID fallback for local testing (replace with env var in production)
+    guildId: process.env.GUILD_ID || '1511495577429479564',
 
     shop: {
       ...botConfig.shop,
@@ -77,31 +73,22 @@ const appConfig = {
 
   shop,
 
-  
-
-
-
-
   features: {
-    
     economy: true,                  
     leveling: true,                 
     moderation: true,               
     logging: true,                  
     welcome: true,                  
 
-    
     tickets: true,                  
     giveaways: true,                
     birthday: true,                 
     counter: true,                  
 
-    
     verification: true,             
     reactionRoles: true,            
     joinToCreate: true,             
 
-    
     voice: true,                    
     search: true,                   
     tools: true,                    
@@ -109,7 +96,6 @@ const appConfig = {
     community: true,                
     fun: true,                      
 
-    
     music: false,                   
   },
 
