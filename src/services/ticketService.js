@@ -489,3 +489,121 @@ export async function closeTicket(client, guild, channel, closedBy, reason = 'No
         logger.error('[Tickets] Error closing ticket:', err?.message || err);
     }
 }
+
+export async function escalateTicket(client, guild, channel, ticket, escalationLevel, reason, escalatedByUser) {
+    const escalationConfig = ESCALATION_LEVELS[escalationLevel];
+    if (!escalationConfig) throw new Error(`Unknown escalation level: ${escalationLevel}`);
+
+    await channel.permissionOverwrites.edit(escalationConfig.roleId, {
+        ViewChannel: true,
+        SendMessages: true,
+        ReadMessageHistory: true,
+        AttachFiles: true
+    }).catch(err => logger.warn('[Tickets] Failed to grant escalation role access:', err?.message || err));
+
+    if (escalationConfig.categoryId) {
+        await channel.setParent(escalationConfig.categoryId, { lockPermissions: false }).catch(err => {
+            logger.warn('[Tickets] Failed to move ticket to escalation category:', err?.message || err);
+        });
+    }
+
+    const updated = await updateTicketData(guild.id, channel.id, {
+        escalated: true,
+        escalationLevel,
+        escalationReason: reason,
+        escalatedBy: escalatedByUser.id,
+        escalatedAt: Date.now()
+    });
+
+    try {
+        const webhook = await getOrCreateWebhook(client, guild, TICKET_LOG_CHANNEL);
+        const embed = new EmbedBuilder()
+            .setColor(escalationConfig.color)
+            .setTitle(`⬆️ Ticket Escalated — #${ticket.num}`)
+            .setDescription(
+                `**Channel:** ${channel}\n` +
+                `**Escalated by:** ${escalatedByUser.tag || escalatedByUser.id}\n` +
+                `**Level:** ${escalationConfig.label}\n` +
+                `**Reason:** ${reason}`
+            )
+            .setTimestamp();
+
+        if (webhook) {
+            await webhook.send({ embeds: [embed] });
+        } else {
+            const logChannel = guild.channels.cache.get(TICKET_LOG_CHANNEL)
+                || await guild.channels.fetch(TICKET_LOG_CHANNEL).catch(() => null);
+            if (logChannel) await logChannel.send({ embeds: [embed] });
+        }
+    } catch (err) {
+        logger.warn('[Tickets] Failed to log escalation:', err?.message || err);
+    }
+
+    return updated;
+}
+
+export async function addUserToTicket(guild, channel, ticket, userId) {
+    const addedUsers = ticket.addedUsers || [];
+    if (addedUsers.includes(userId)) return false;
+
+    await channel.permissionOverwrites.edit(userId, {
+        ViewChannel: true,
+        SendMessages: true,
+        ReadMessageHistory: true,
+        AttachFiles: true
+    });
+
+    await updateTicketData(guild.id, channel.id, {
+        addedUsers: [...addedUsers, userId]
+    });
+
+    return true;
+}
+
+export async function removeUserFromTicket(guild, channel, ticket, userId) {
+    const addedUsers = ticket.addedUsers || [];
+    if (!addedUsers.includes(userId)) return false;
+
+    await channel.permissionOverwrites.delete(userId).catch(err => {
+        logger.warn('[Tickets] Failed to delete user permission overwrite:', err?.message || err);
+    });
+
+    await updateTicketData(guild.id, channel.id, {
+        addedUsers: addedUsers.filter(id => id !== userId)
+    });
+
+    return true;
+}
+
+export async function addRoleToTicket(guild, channel, ticket, roleId) {
+    const addedRoles = ticket.addedRoles || [];
+    if (addedRoles.includes(roleId)) return false;
+
+    await channel.permissionOverwrites.edit(roleId, {
+        ViewChannel: true,
+        SendMessages: true,
+        ReadMessageHistory: true,
+        AttachFiles: true
+    });
+
+    await updateTicketData(guild.id, channel.id, {
+        addedRoles: [...addedRoles, roleId]
+    });
+
+    return true;
+}
+
+export async function removeRoleFromTicket(guild, channel, ticket, roleId) {
+    const addedRoles = ticket.addedRoles || [];
+    if (!addedRoles.includes(roleId)) return false;
+
+    await channel.permissionOverwrites.delete(roleId).catch(err => {
+        logger.warn('[Tickets] Failed to delete role permission overwrite:', err?.message || err);
+    });
+
+    await updateTicketData(guild.id, channel.id, {
+        addedRoles: addedRoles.filter(id => id !== roleId)
+    });
+
+    return true;
+}
