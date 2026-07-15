@@ -41,11 +41,11 @@ export default {
                         .setName("type")
                         .setDescription("Type of note")
                         .addChoices(
-                            { name: "Warning", value: "Resolved" },
-                            { name: "Positive", value: "Minor" },
-                            { name: "Neutral", value: "Moderate" },
-                            { name: "Alert", value: "Major" }
-                            { name: "Alert", value: "Critical" }
+                            { name: "Resolved", value: "Resolved" },
+                            { name: "Minor", value: "Minor" },
+                            { name: "Moderate", value: "Moderate" },
+                            { name: "Major", value: "Major" },
+                            { name: "Critical", value: "Critical" }
                         )
                         .setRequired(false)
                 )
@@ -163,7 +163,7 @@ export default {
 
 async function handleAddNote(interaction, targetUser, notes, guildId) {
     let note = interaction.options.getString("note").trim();
-    const type = interaction.options.getString("type") || "neutral";
+    const type = interaction.options.getString("type") || "Moderate";
 
     if (note.length > 1000) {
         return InteractionHelper.safeReply(interaction, {
@@ -322,11 +322,17 @@ async function handleClearNotes(interaction, targetUser, notes, guildId) {
 
 function getNoteTypeInfo(type) {
     const types = {
+        Resolved: { emoji: "✅", color: "#51CF66" },
+        Minor: { emoji: "📝", color: "#74C0FC" },
+        Moderate: { emoji: "⚠️", color: "#FFD43B" },
+        Major: { emoji: "🚨", color: "#FF922B" },
+        Critical: { emoji: "🔴", color: "#FF6B6B" },
+        // Back-compat for notes created before the severity-based types
         warning: { emoji: "⚠️", color: "#FF6B6B" },
         positive: { emoji: "✅", color: "#51CF66" },
         neutral: { emoji: "📝", color: "#74C0FC" },
         alert: { emoji: "🚨", color: "#FFD43B" }
     };
-    
-    return types[type] || types.neutral;
+
+    return types[type] || types.Moderate;
 }

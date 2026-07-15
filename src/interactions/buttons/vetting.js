@@ -108,6 +108,10 @@ export default [
                     .setRequired(true)
                     .setMaxLength(500);
 
+                if (data.suggestedFailReason) {
+                    reasonInput.setValue(data.suggestedFailReason.slice(0, 500));
+                }
+
                 modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
                 await interaction.showModal(modal);
             } catch (error) {
