@@ -516,19 +516,23 @@ export async function escalateTicket(client, guild, channel, ticket, escalationL
         escalatedAt: Date.now()
     });
 
-    // Step 3: Log escalation as plain text directly via the bot (no webhook)
+    // Step 3: Log escalation directly via the bot (no webhook)
     try {
         const logChannel = guild.channels.cache.get(TICKET_LOG_CHANNEL)
             || await guild.channels.fetch(TICKET_LOG_CHANNEL).catch(() => null);
         if (logChannel) {
-            await logChannel.send({
-                content:
-                    `⬆️ **Ticket Escalated — #${ticket.num}**\n` +
-                    `Channel: ${channel}\n` +
-                    `Escalated by: ${escalatedByUser.tag || escalatedByUser.id}\n` +
-                    `Level: ${escalationConfig.label}\n` +
-                    `Reason: ${reason}`
-            });
+            const escalateLogEmbed = new EmbedBuilder()
+                .setColor(escalationConfig.color)
+                .setTitle(`⬆️ Ticket Escalated to ${escalationConfig.label}`)
+                .setDescription(
+                    `This ticket has been escalated to **${escalationConfig.label}** by <@${escalatedByUser.id}>.\n\n` +
+                    `Reason:\n\`\`\`\n${reason}\n\`\`\``
+                )
+                .addFields(
+                    { name: 'Ticket', value: `#${ticket.num}`, inline: true },
+                    { name: 'Channel', value: `${channel}`, inline: true }
+                );
+            await logChannel.send({ embeds: [escalateLogEmbed] });
         }
     } catch (err) {
         logger.warn('[Tickets] Failed to log escalation:', err?.message || err);

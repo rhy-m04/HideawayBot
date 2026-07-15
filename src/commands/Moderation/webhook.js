@@ -2,7 +2,6 @@ import {
     SlashCommandBuilder,
     PermissionFlagsBits,
     EmbedBuilder,
-    WebhookClient,
     MessageFlags,
     ChannelType
 } from 'discord.js';
@@ -62,16 +61,6 @@ export default {
                         .setDescription('Optional Discohook JSON file to send immediately after creating the webhook')
                         .setRequired(false)
                 )
-                .addStringOption(o =>
-                    o.setName('username')
-                        .setDescription('Display name override for the initial message')
-                        .setRequired(false)
-                )
-                .addStringOption(o =>
-                    o.setName('avatar')
-                        .setDescription('Avatar URL override for the initial message')
-                        .setRequired(false)
-                )
         )
         .addSubcommand(sub =>
             sub.setName('send')
@@ -89,16 +78,6 @@ export default {
                 .addStringOption(o =>
                     o.setName('content')
                         .setDescription('Plain text message (if not using a JSON file)')
-                        .setRequired(false)
-                )
-                .addStringOption(o =>
-                    o.setName('username')
-                        .setDescription('Override the display name shown on this message')
-                        .setRequired(false)
-                )
-                .addStringOption(o =>
-                    o.setName('avatar')
-                        .setDescription('Override the avatar URL shown on this message')
                         .setRequired(false)
                 )
         )
@@ -142,8 +121,6 @@ export default {
                 const name = interaction.options.getString('name').toLowerCase().replace(/\s+/g, '-');
                 const channel = interaction.options.getChannel('channel');
                 const jsonAttachment = interaction.options.getAttachment('json');
-                const usernameOverride = interaction.options.getString('username');
-                const avatarOverride = interaction.options.getString('avatar');
 
                 const webhooks = await getWebhooks(guildId);
                 if (webhooks[name]) {
@@ -158,22 +135,7 @@ export default {
                     });
                 }
 
-                let discordWebhook;
-                try {
-                    discordWebhook = await channel.createWebhook({
-                        name: name,
-                        reason: `Created by ${interaction.user.tag} via /webhook create`
-                    });
-                } catch (err) {
-                    logger.error('Webhook create error:', err);
-                    return InteractionHelper.safeEditReply(interaction, {
-                        content: `❌ Failed to create the webhook. Make sure I have the **Manage Webhooks** permission in ${channel.toString()}.`
-                    });
-                }
-
                 webhooks[name] = {
-                    id: discordWebhook.id,
-                    token: discordWebhook.token,
                     channelId: channel.id,
                     channelName: channel.name,
                     createdBy: interaction.user.id,
@@ -191,17 +153,10 @@ export default {
                         const raw = await res.text();
                         const payload = parseDiscohookJson(raw);
 
-                        if (usernameOverride) payload.username = usernameOverride;
-                        if (avatarOverride) payload.avatar_url = avatarOverride;
-
-                        const whClient = new WebhookClient({ id: discordWebhook.id, token: discordWebhook.token });
-                        await whClient.send({
+                        await channel.send({
                             ...(payload.content ? { content: payload.content } : {}),
                             ...(payload.embeds?.length ? { embeds: payload.embeds } : {}),
-                            ...(payload.username ? { username: payload.username } : {}),
-                            ...(payload.avatar_url ? { avatarURL: payload.avatar_url } : {}),
                         });
-                        whClient.destroy();
                         initialSent = true;
                     } catch (err) {
                         logger.error('Webhook create — initial send error:', err);
@@ -214,10 +169,9 @@ export default {
                     .setTitle('✅ Webhook Created')
                     .addFields(
                         { name: 'Name', value: `\`${name}\``, inline: true },
-                        { name: 'Channel', value: channel.toString(), inline: true },
-                        { name: 'Webhook ID', value: `\`${discordWebhook.id}\``, inline: false }
+                        { name: 'Channel', value: channel.toString(), inline: true }
                     )
-                    .setFooter({ text: 'Use /webhook send to post through it' })
+                    .setFooter({ text: 'Use /webhook send to post through it — messages send as the bot itself' })
                     .setTimestamp();
 
                 if (jsonAttachment) {
@@ -267,15 +221,6 @@ export default {
                     });
                 }
 
-                const entry = webhooks[name];
-                try {
-                    const whClient = new WebhookClient({ id: entry.id, token: entry.token });
-                    await whClient.delete();
-                    whClient.destroy();
-                } catch (err) {
-                    logger.warn(`Could not delete webhook from Discord (may already be gone): ${err.message}`);
-                }
-
                 delete webhooks[name];
                 await saveWebhooks(guildId, webhooks);
 
@@ -300,8 +245,6 @@ export default {
 
                 const jsonAttachment = interaction.options.getAttachment('json');
                 const plainContent = interaction.options.getString('content');
-                const usernameOverride = interaction.options.getString('username');
-                const avatarOverride = interaction.options.getString('avatar');
 
                 if (!jsonAttachment && !plainContent) {
                     return InteractionHelper.safeEditReply(interaction, {
@@ -310,7 +253,13 @@ export default {
                 }
 
                 const entry = webhooks[name];
-                const whClient = new WebhookClient({ id: entry.id, token: entry.token });
+                const channel = interaction.guild.channels.cache.get(entry.channelId);
+
+                if (!channel) {
+                    return InteractionHelper.safeEditReply(interaction, {
+                        content: `❌ The channel for **${name}** no longer exists. Delete this webhook and create a new one.`
+                    });
+                }
 
                 try {
                     let payload = {};
@@ -330,34 +279,25 @@ export default {
                     }
 
                     if (plainContent) payload.content = plainContent;
-                    if (usernameOverride) payload.username = usernameOverride;
-                    if (avatarOverride) payload.avatar_url = avatarOverride;
 
-                    // discord.js WebhookClient.send() expects embeds as EmbedBuilder or raw API objects
                     const sendPayload = {
                         ...(payload.content ? { content: payload.content } : {}),
                         ...(payload.embeds?.length ? { embeds: payload.embeds } : {}),
-                        ...(payload.username ? { username: payload.username } : {}),
-                        ...(payload.avatar_url ? { avatarURL: payload.avatar_url } : {}),
-                        ...(payload.files?.length ? { files: payload.files } : {}),
                     };
 
-                    await whClient.send(sendPayload);
-                    whClient.destroy();
+                    await channel.send(sendPayload);
 
-                    const channel = interaction.guild.channels.cache.get(entry.channelId);
                     const embed = new EmbedBuilder()
                         .setColor(0x57F287)
                         .setTitle('✅ Message Sent')
                         .addFields(
                             { name: 'Webhook', value: `\`${name}\``, inline: true },
-                            { name: 'Channel', value: channel ? channel.toString() : `\`${entry.channelName}\``, inline: true }
+                            { name: 'Channel', value: channel.toString(), inline: true }
                         )
                         .setTimestamp();
 
                     return InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
                 } catch (err) {
-                    whClient.destroy();
                     logger.error('Webhook send error:', err);
                     return InteractionHelper.safeEditReply(interaction, {
                         content: `❌ Failed to send: ${err.message}`
