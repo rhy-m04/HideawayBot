@@ -10,7 +10,7 @@ import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { getModerationCases } from '../../utils/moderation.js';
 import { getFromDb, setInDb } from '../../utils/database.js';
-import { addVettingHistoryEntry, getVettingHistory } from '../../utils/vettingHistory.js';
+import { addVettingHistoryEntry, getVettingHistory, removeVettingHistoryEntry } from '../../utils/vettingHistory.js';
 import { classifyActionSeverity, isCaseActive, computeVettingRecommendation } from '../../utils/vettingCriteria.js';
 
 const LEVEL_PREFIX = {
@@ -53,6 +53,20 @@ export default {
                         .setDescription('The member requesting the vetting')
                         .setRequired(true)
                 )
+        )
+        .addSubcommand(sub =>
+            sub.setName('remove')
+                .setDescription('Remove a vetting record from a user\'s history')
+                .addUserOption(o =>
+                    o.setName('user')
+                        .setDescription('The user whose vetting history to edit')
+                        .setRequired(true)
+                )
+                .addStringOption(o =>
+                    o.setName('vetting_id')
+                        .setDescription('The Vetting ID to remove (shown in the footer of the vetting embed)')
+                        .setRequired(true)
+                )
         ),
     category: 'moderation',
 
@@ -63,6 +77,7 @@ export default {
         try {
             const sub = interaction.options.getSubcommand();
             if (sub === 'check') await handleVettingCheck(interaction, client);
+            if (sub === 'remove') await handleVettingRemove(interaction);
         } catch (error) {
             logger.error('Vetting command error:', error);
             await InteractionHelper.safeEditReply(interaction, {
@@ -237,4 +252,67 @@ async function handleVettingCheck(interaction, client) {
     );
 
     await InteractionHelper.safeEditReply(interaction, { embeds: [embed], components: [row] });
+}
+
+async function handleVettingRemove(interaction) {
+    const targetUser = interaction.options.getUser('user');
+    const vettingId = interaction.options.getString('vetting_id').trim();
+    const guild = interaction.guild;
+
+    // Find the shortId whose stored record matches the provided vettingId.
+    const history = await getVettingHistory(guild.id, targetUser.id);
+
+    if (!history.length) {
+        return InteractionHelper.safeEditReply(interaction, {
+            content: `❌ No vetting history found for <@${targetUser.id}>.`
+        });
+    }
+
+    const match = history.find(r => r.vettingId === vettingId);
+
+    if (!match) {
+        return InteractionHelper.safeEditReply(interaction, {
+            content: `❌ No vetting record with ID \`${vettingId}\` found in <@${targetUser.id}>'s history.\nMake sure you copied the full Vetting ID from the embed footer.`
+        });
+    }
+
+    // Derive shortId from the stored record's DB key pattern (vetting_${shortId}).
+    // We stored shortId inside the record when we began tracking history — fall back
+    // to scanning the raw ID list if needed.
+    const { getFromDb } = await import('../../utils/database.js');
+    const idList = await getFromDb(`vetting_history_${guild.id}_${targetUser.id}`, []);
+    const shortId = idList.find(async id => {
+        const rec = await getFromDb(`vetting_${id}`, null);
+        return rec?.vettingId === vettingId;
+    });
+
+    // Simpler: re-derive shortId by matching across the raw list.
+    let resolvedShortId = null;
+    for (const id of idList) {
+        const rec = await getFromDb(`vetting_${id}`, null);
+        if (rec?.vettingId === vettingId) { resolvedShortId = id; break; }
+    }
+
+    if (!resolvedShortId) {
+        return InteractionHelper.safeEditReply(interaction, {
+            content: `❌ Could not locate the internal record for Vetting ID \`${vettingId}\`. It may have already been deleted.`
+        });
+    }
+
+    await removeVettingHistoryEntry(guild.id, targetUser.id, resolvedShortId);
+
+    const embed = new EmbedBuilder()
+        .setColor(0xED4245)
+        .setTitle('Vetting Record Removed')
+        .setDescription(
+            `The following vetting record has been removed from <@${targetUser.id}>'s history.\n\n` +
+            `**Vetting ID:** \`${vettingId}\`\n` +
+            `**Level:** ${match.level}\n` +
+            `**Status:** ${match.status}\n` +
+            `**Originally Conducted:** <t:${Math.floor(new Date(match.createdAt).getTime() / 1000)}:F>`
+        )
+        .setFooter({ text: `Removed by ${interaction.user.tag}` })
+        .setTimestamp();
+
+    await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
 }

@@ -13,6 +13,17 @@ export async function addVettingHistoryEntry(guildId, userId, shortId) {
     await setInDb(key, ids);
 }
 
+// Removes a specific shortId from the user's history index and deletes its DB record.
+export async function removeVettingHistoryEntry(guildId, userId, shortId) {
+    const key = historyKey(guildId, userId);
+    const ids = await getFromDb(key, []);
+    const filtered = ids.filter(id => id !== shortId);
+    await setInDb(key, filtered);
+    // Remove the record itself so it no longer shows up anywhere
+    await setInDb(`vetting_${shortId}`, null);
+    return ids.length !== filtered.length; // true if something was actually removed
+}
+
 // Fetches full vetting records for a user, most recent first.
 export async function getVettingHistory(guildId, userId) {
     const key = historyKey(guildId, userId);
