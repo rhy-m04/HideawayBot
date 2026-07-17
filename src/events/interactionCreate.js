@@ -210,6 +210,19 @@ export default {
               });
               await interaction.respond([]);
             }
+          } else if (interaction.commandName === 'medal' && focusedOption.name === 'medal') {
+            try {
+              const { getFromDb } = await import('../utils/database.js');
+              const medals = await getFromDb(`medals_${interaction.guildId}`, {});
+              const typed = focusedOption.value.toLowerCase();
+              const choices = Object.values(medals)
+                .filter(m => m.name.toLowerCase().includes(typed))
+                .slice(0, 25)
+                .map(m => ({ name: m.name, value: m.name.toLowerCase() }));
+              await interaction.respond(choices);
+            } catch {
+              await interaction.respond([]);
+            }
           }
         } else if (interaction.isButton()) {
           if (interaction.customId.startsWith('shared_todo_')) {
