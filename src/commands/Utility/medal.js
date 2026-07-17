@@ -40,8 +40,17 @@ async function saveDisplay(guildId, data) {
     return setInDb(DISPLAY_KEY(guildId), data);
 }
 
+function sortedMedals(medals) {
+    return Object.values(medals).sort((a, b) => {
+        const pa = a.position ?? Infinity;
+        const pb = b.position ?? Infinity;
+        if (pa !== pb) return pa - pb;
+        return (a.createdAt || '').localeCompare(b.createdAt || '');
+    });
+}
+
 async function buildMedalEmbeds(guild, medals) {
-    const medalList = Object.values(medals);
+    const medalList = sortedMedals(medals);
     if (medalList.length === 0) return [];
 
     await guild.members.fetch().catch(() => {});
@@ -217,6 +226,16 @@ export default {
                             o.setName('medal').setDescription('Medal name').setRequired(true).setAutocomplete(true)
                         )
                 )
+                .addSubcommand(sub =>
+                    sub.setName('order')
+                        .setDescription('Set the display position of a medal (1 = first)')
+                        .addStringOption(o =>
+                            o.setName('medal').setDescription('Medal to reposition').setRequired(true).setAutocomplete(true)
+                        )
+                        .addIntegerOption(o =>
+                            o.setName('position').setDescription('Position number (1 = first shown)').setRequired(true).setMinValue(1)
+                        )
+                )
         ),
     category: 'Utility',
 
@@ -247,7 +266,8 @@ export default {
                     });
                 }
 
-                medals[key] = { name, roleId: role.id, imageUrl: null, color, createdAt: new Date().toISOString() };
+                const nextPosition = Object.values(medals).length + 1;
+                medals[key] = { name, roleId: role.id, imageUrl: null, color, position: nextPosition, createdAt: new Date().toISOString() };
                 await saveMedals(guildId, medals);
                 refreshMedalDisplay(client, guildId).catch(() => {});
                 logEvent({ client, guildId, eventType: EVENT_TYPES.MEDAL_CREATE, data: {
@@ -392,7 +412,7 @@ export default {
             if (sub === 'list') {
                 const targetUser = interaction.options.getUser('user');
                 const medals = await getMedals(guildId);
-                const medalList = Object.values(medals);
+                const medalList = sortedMedals(medals);
 
                 if (targetUser) {
                     const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
@@ -494,6 +514,33 @@ export default {
 
                 return InteractionHelper.safeEditReply(interaction, {
                     content: `✅ Medal **${name}** deleted. The display board will update momentarily.`
+                });
+            }
+
+            if (group === 'manage' && sub === 'order') {
+                if (!isAdmin) return deny(interaction, 'Manage Server');
+
+                const key      = medalKey(interaction.options.getString('medal'));
+                const position = interaction.options.getInteger('position');
+                const medals   = await getMedals(guildId);
+
+                if (!medals[key]) return notFound(interaction, key);
+
+                medals[key].position = position;
+                await saveMedals(guildId, medals);
+                refreshMedalDisplay(client, guildId).catch(() => {});
+
+                const ordered = sortedMedals(medals);
+                const listStr = ordered.map((m, i) => `${i + 1}. **${m.name}**${m.position != null ? ` *(pos ${m.position})*` : ''}`).join('\n');
+
+                return InteractionHelper.safeEditReply(interaction, {
+                    embeds: [new EmbedBuilder()
+                        .setColor(0x5865F2)
+                        .setTitle('🏅 Medal Order Updated')
+                        .setDescription(`**${medals[key].name}** is now at position **${position}**.\n\n**Current display order:**\n${listStr}`)
+                        .setFooter({ text: 'The display board will update momentarily.' })
+                        .setTimestamp()
+                    ]
                 });
             }
 
