@@ -78,6 +78,16 @@ const EVENT_TYPES = {
   // Vetting decisions
   VETTING_PASS: 'vetting.pass',
   VETTING_FAIL: 'vetting.fail',
+
+  // Medal events
+  MEDAL_AWARD:  'medal.award',
+  MEDAL_REMOVE: 'medal.remove',
+  MEDAL_CREATE: 'medal.create',
+  MEDAL_DELETE: 'medal.delete',
+
+  // Qualification events
+  QUALIFICATION_GIVE:   'qualification.give',
+  QUALIFICATION_REMOVE: 'qualification.remove',
 };
 
 const EVENT_COLORS = {
@@ -126,6 +136,12 @@ const EVENT_COLORS = {
   'ranklog.remove': 0xFEE75C,
   'vetting.pass': 0x57F287,
   'vetting.fail': 0xED4245,
+  'medal.award':  0xFFD700,
+  'medal.remove': 0xFFA500,
+  'medal.create': 0x57F287,
+  'medal.delete': 0xED4245,
+  'qualification.give':   0x57F287,
+  'qualification.remove': 0xED4245,
 };
 
 const EVENT_ICONS = {
@@ -174,6 +190,12 @@ const EVENT_ICONS = {
   'ranklog.remove': '🔴',
   'vetting.pass': '✅',
   'vetting.fail': '❌',
+  'medal.award':  '🏅',
+  'medal.remove': '🗑️',
+  'medal.create': '➕',
+  'medal.delete': '🗑️',
+  'qualification.give':   '🎓',
+  'qualification.remove': '❌',
 };
 
 

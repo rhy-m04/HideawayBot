@@ -7,6 +7,7 @@ import {
 import { getFromDb, setInDb } from '../../utils/database.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { logger } from '../../utils/logger.js';
+import { logEvent, EVENT_TYPES } from '../../services/loggingService.js';
 
 const DB_KEY = guildId => `qualification_config_${guildId}`;
 
@@ -169,6 +170,14 @@ export default {
                 }
 
                 await member.roles.add(role, `Qualification "${name}" given by ${interaction.user.tag}`);
+                logEvent({ client, guildId, eventType: EVENT_TYPES.QUALIFICATION_GIVE, data: {
+                    userId: targetUser.id,
+                    fields: [
+                        { name: 'Recipient', value: `<@${targetUser.id}> \`${targetUser.tag}\``, inline: true },
+                        { name: 'Qualification', value: name, inline: true },
+                        { name: 'Given By', value: `<@${interaction.user.id}>`, inline: true },
+                    ]
+                }}).catch(() => {});
 
                 const embed = new EmbedBuilder()
                     .setColor(0x57F287)
@@ -211,6 +220,14 @@ export default {
                 }
 
                 await member.roles.remove(role, `Qualification "${name}" removed by ${interaction.user.tag}`);
+                logEvent({ client, guildId, eventType: EVENT_TYPES.QUALIFICATION_REMOVE, data: {
+                    userId: targetUser.id,
+                    fields: [
+                        { name: 'Member', value: `<@${targetUser.id}> \`${targetUser.tag}\``, inline: true },
+                        { name: 'Qualification', value: name, inline: true },
+                        { name: 'Removed By', value: `<@${interaction.user.id}>`, inline: true },
+                    ]
+                }}).catch(() => {});
 
                 const embed = new EmbedBuilder()
                     .setColor(0xED4245)

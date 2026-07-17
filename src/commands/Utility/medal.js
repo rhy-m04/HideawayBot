@@ -8,6 +8,7 @@ import {
 import { getFromDb, setInDb } from '../../utils/database.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { logger } from '../../utils/logger.js';
+import { logEvent, EVENT_TYPES } from '../../services/loggingService.js';
 
 const MEDALS_KEY   = guildId => `medals_${guildId}`;
 const DISPLAY_KEY  = guildId => `medals_display_${guildId}`;
@@ -243,6 +244,14 @@ export default {
                 medals[key] = { name, roleId: role.id, imageUrl: null, color, createdAt: new Date().toISOString() };
                 await saveMedals(guildId, medals);
                 refreshMedalDisplay(client, guildId).catch(() => {});
+                logEvent({ client, guildId, eventType: EVENT_TYPES.MEDAL_CREATE, data: {
+                    userId: interaction.user.id,
+                    fields: [
+                        { name: 'Medal', value: name, inline: true },
+                        { name: 'Bound Role', value: role.toString(), inline: true },
+                        { name: 'Created By', value: `<@${interaction.user.id}>`, inline: true },
+                    ]
+                }}).catch(() => {});
 
                 return InteractionHelper.safeEditReply(interaction, {
                     embeds: [new EmbedBuilder()
@@ -311,6 +320,14 @@ export default {
 
                 await member.roles.add(role, `Medal "${medal.name}" awarded by ${interaction.user.tag}`);
                 refreshMedalDisplay(client, guildId).catch(() => {});
+                logEvent({ client, guildId, eventType: EVENT_TYPES.MEDAL_AWARD, data: {
+                    userId: targetUser.id,
+                    fields: [
+                        { name: 'Recipient', value: `<@${targetUser.id}> \`${targetUser.tag}\``, inline: true },
+                        { name: 'Medal', value: medal.name, inline: true },
+                        { name: 'Awarded By', value: `<@${interaction.user.id}>`, inline: true },
+                    ]
+                }}).catch(() => {});
 
                 return InteractionHelper.safeEditReply(interaction, {
                     embeds: [new EmbedBuilder()
@@ -343,6 +360,14 @@ export default {
 
                 await member.roles.remove(role, `Medal "${medal.name}" removed by ${interaction.user.tag}`);
                 refreshMedalDisplay(client, guildId).catch(() => {});
+                logEvent({ client, guildId, eventType: EVENT_TYPES.MEDAL_REMOVE, data: {
+                    userId: targetUser.id,
+                    fields: [
+                        { name: 'Member', value: `<@${targetUser.id}> \`${targetUser.tag}\``, inline: true },
+                        { name: 'Medal', value: medal.name, inline: true },
+                        { name: 'Removed By', value: `<@${interaction.user.id}>`, inline: true },
+                    ]
+                }}).catch(() => {});
 
                 return InteractionHelper.safeEditReply(interaction, {
                     embeds: [new EmbedBuilder()
@@ -449,6 +474,13 @@ export default {
                 delete medals[key];
                 await saveMedals(guildId, medals);
                 refreshMedalDisplay(client, guildId).catch(() => {});
+                logEvent({ client, guildId, eventType: EVENT_TYPES.MEDAL_DELETE, data: {
+                    userId: interaction.user.id,
+                    fields: [
+                        { name: 'Medal', value: name, inline: true },
+                        { name: 'Deleted By', value: `<@${interaction.user.id}>`, inline: true },
+                    ]
+                }}).catch(() => {});
 
                 return InteractionHelper.safeEditReply(interaction, {
                     content: `✅ Medal **${name}** deleted. The display board will update momentarily.`

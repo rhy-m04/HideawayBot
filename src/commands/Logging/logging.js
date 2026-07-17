@@ -20,9 +20,11 @@ export const LOG_CATEGORIES = [
     { value: 'giveaway',     label: '🎁 Giveaways',       description: 'Giveaway create, winner, reroll, delete' },
     { value: 'voice',        label: '🎙️ Voice',           description: 'Voice join, leave, move, status' },
     { value: 'channel',      label: '📢 Channels',        description: 'Channel create, delete, permission changes' },
-    { value: 'command',      label: '⌨️ Commands',        description: 'Slash command usage by members' },
-    { value: 'ranklog',      label: '🎖️ Rank Changes',   description: 'Role changes via the /rank command' },
-    { value: 'vetting',      label: '🔍 Vetting',         description: 'Vetting pass/fail decisions' },
+    { value: 'command',       label: '⌨️ Commands',         description: 'Slash command usage by members' },
+    { value: 'ranklog',       label: '🎖️ Rank Changes',    description: 'Role changes via the /rank command' },
+    { value: 'vetting',       label: '🔍 Vetting',          description: 'Vetting pass/fail decisions' },
+    { value: 'medal',         label: '🏅 Medals',           description: 'Medal awards, removals, creation, deletion' },
+    { value: 'qualification', label: '🎓 Qualifications',   description: 'Qualification given or removed' },
 ];
 
 export async function buildPanelMessage(client, guildId, guild) {
