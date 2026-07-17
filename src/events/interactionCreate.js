@@ -8,6 +8,7 @@ import { InteractionHelper } from '../utils/interactionHelper.js';
 import { createInteractionTraceContext, runWithTraceContext } from '../utils/traceContext.js';
 import { validateChatInputPayloadOrThrow } from '../utils/commandInputValidation.js';
 import { enforceAbuseProtection, formatCooldownDuration } from '../utils/abuseProtection.js';
+import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 
 function withTraceContext(context = {}, traceContext = {}) {
   return {
@@ -96,6 +97,22 @@ export default {
             }
 
             await command.execute(interaction, guildConfig, client);
+
+            if (interaction.guildId) {
+              logEvent({
+                client,
+                guildId: interaction.guildId,
+                eventType: EVENT_TYPES.COMMAND_EXECUTE,
+                data: {
+                  userId: interaction.user.id,
+                  fields: [
+                    { name: 'User', value: `<@${interaction.user.id}> \`${interaction.user.tag}\``, inline: true },
+                    { name: 'Command', value: `\`/${interaction.commandName}\``, inline: true },
+                    { name: 'Channel', value: `<#${interaction.channelId}>`, inline: true },
+                  ]
+                }
+              }).catch(() => {});
+            }
           } catch (error) {
             await handleInteractionError(interaction, error, withTraceContext({
               type: 'command',
@@ -288,6 +305,22 @@ export default {
           } catch (error) {
             await handleInteractionError(interaction, error, withTraceContext({
               type: 'role_select_menu',
+              customId: interaction.customId
+            }, interactionTraceContext));
+          }
+        } else if (interaction.isChannelSelectMenu()) {
+          const [customId, ...args] = interaction.customId.split(':');
+          const selectMenu = client.selectMenus.get(customId);
+
+          if (!selectMenu) {
+            return;
+          }
+
+          try {
+            await selectMenu.execute(interaction, client, args);
+          } catch (error) {
+            await handleInteractionError(interaction, error, withTraceContext({
+              type: 'channel_select_menu',
               customId: interaction.customId
             }, interactionTraceContext));
           }

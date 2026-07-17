@@ -2,6 +2,7 @@ import { PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { setInDb, getFromDb } from '../../utils/database.js';
 import { RANK_HIERARCHY, EXEMPT_RANKS, ALL_MANAGED_RANK_IDS } from '../../commands/Moderation/rank.js';
+import { logEvent, EVENT_TYPES } from '../../services/loggingService.js';
 
 const LOG_CHANNEL_ID = '1513670232911122482';
 
@@ -152,6 +153,22 @@ export default {
             }
 
             await sendRankLog(guild, client, { targetUser: member.user, role, removedRoles, issuer, reason, authorisation, action, status: 'SUCCESS' });
+            await logEvent({
+                client,
+                guildId: guild.id,
+                eventType: action === 'add' ? EVENT_TYPES.RANK_ADD : EVENT_TYPES.RANK_REMOVE,
+                data: {
+                    userId: member.user.id,
+                    fields: [
+                        { name: 'User', value: `<@${member.user.id}> \`${member.user.id}\``, inline: true },
+                        { name: action === 'add' ? '🎖️ Role Added' : '🎖️ Role Removed', value: role.name, inline: true },
+                        { name: 'Issued By', value: `<@${issuer.user.id}>`, inline: true },
+                        ...(action === 'add' && removedRoles?.length ? [{ name: 'Roles Removed', value: removedRoles.map(r => r.name).join(', ') }] : []),
+                        ...(action === 'remove' && authorisation ? [{ name: 'Authorisation', value: authorisation }] : []),
+                        { name: 'Reason', value: reason || 'No reason provided' },
+                    ]
+                }
+            });
             await interaction.editReply({ embeds: [originalEmbed], components: [] });
             await interaction.followUp({ embeds: [noticeEmbed(true, member.toString(), role.toString(), action)], ephemeral: true });
 

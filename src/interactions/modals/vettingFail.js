@@ -1,6 +1,7 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { getFromDb, setInDb } from '../../utils/database.js';
+import { logEvent, EVENT_TYPES } from '../../services/loggingService.js';
 
 const VETTING_LOG_CHANNEL = '1515132847940440126';
 
@@ -49,6 +50,24 @@ export default {
             await setInDb(`vetting_${shortId}`, data);
 
             await sendVettingLog(interaction.guild, data, failReason);
+            await logEvent({
+                client: interaction.client,
+                guildId: interaction.guildId,
+                eventType: EVENT_TYPES.VETTING_FAIL,
+                data: {
+                    userId: data.targetUserId,
+                    fields: [
+                        { name: 'User', value: `<@${data.targetUserId}> \`${data.targetUserId}\``, inline: true },
+                        { name: 'Level', value: data.level, inline: true },
+                        { name: 'Result', value: '❌ FAIL', inline: true },
+                        { name: 'Requesting Member', value: `<@${data.requestingMemberId}>`, inline: true },
+                        { name: 'Processed By', value: `<@${interaction.user.id}>`, inline: true },
+                        { name: 'Reason', value: data.reason || 'None provided' },
+                        { name: 'Fail Reason', value: failReason },
+                        { name: 'Vetting ID', value: `\`${data.vettingId}\`` },
+                    ]
+                }
+            });
 
             const disabledRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId(`vetting_pass:${shortId}`).setLabel('✅  PASS').setStyle(ButtonStyle.Success).setDisabled(true),

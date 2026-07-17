@@ -67,6 +67,17 @@ const EVENT_TYPES = {
   CHANNEL_CREATE: 'channel.create',
   CHANNEL_DELETE: 'channel.delete',
   CHANNEL_PERMISSIONS_UPDATE: 'channel.permissions',
+
+  // Command execution
+  COMMAND_EXECUTE: 'command.execute',
+
+  // Rank changes via /rank command
+  RANK_ADD: 'ranklog.add',
+  RANK_REMOVE: 'ranklog.remove',
+
+  // Vetting decisions
+  VETTING_PASS: 'vetting.pass',
+  VETTING_FAIL: 'vetting.fail',
 };
 
 const EVENT_COLORS = {
@@ -110,6 +121,11 @@ const EVENT_COLORS = {
   'channel.create': 0x2ecc71,
   'channel.delete': 0xe74c3c,
   'channel.permissions': 0xFFA500,
+  'command.execute': 0x3498db,
+  'ranklog.add': 0x57F287,
+  'ranklog.remove': 0xFEE75C,
+  'vetting.pass': 0x57F287,
+  'vetting.fail': 0xED4245,
 };
 
 const EVENT_ICONS = {
@@ -153,6 +169,11 @@ const EVENT_ICONS = {
   'channel.create': '📢',
   'channel.delete': '🗑️',
   'channel.permissions': '🔐',
+  'command.execute': '⌨️',
+  'ranklog.add': '🎖️',
+  'ranklog.remove': '🔴',
+  'vetting.pass': '✅',
+  'vetting.fail': '❌',
 };
 
 

@@ -14,12 +14,15 @@ export const LOG_CATEGORIES = [
     { value: 'moderation',   label: '🔨 Moderation',     description: 'Bans, kicks, mutes, warns, purges' },
     { value: 'ticket',       label: '🎫 Tickets',         description: 'Ticket create, close, claim, delete' },
     { value: 'message',      label: '✉️ Messages',        description: 'Message delete, edit, bulk delete' },
-    { value: 'role',         label: '🏷️ Roles',           description: 'Role create, delete, update, member changes' },
+    { value: 'role',         label: '🏷️ Roles',           description: 'Role create, delete, update, perm changes' },
     { value: 'member',       label: '👥 Members',         description: 'Member join, leave, name changes' },
     { value: 'reactionrole', label: '🎭 Reaction Roles',  description: 'Reaction role add, remove, create, delete' },
     { value: 'giveaway',     label: '🎁 Giveaways',       description: 'Giveaway create, winner, reroll, delete' },
     { value: 'voice',        label: '🎙️ Voice',           description: 'Voice join, leave, move, status' },
     { value: 'channel',      label: '📢 Channels',        description: 'Channel create, delete, permission changes' },
+    { value: 'command',      label: '⌨️ Commands',        description: 'Slash command usage by members' },
+    { value: 'ranklog',      label: '🎖️ Rank Changes',   description: 'Role changes via the /rank command' },
+    { value: 'vetting',      label: '🔍 Vetting',         description: 'Vetting pass/fail decisions' },
 ];
 
 export async function buildPanelMessage(client, guildId, guild) {
