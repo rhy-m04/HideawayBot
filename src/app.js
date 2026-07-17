@@ -11,6 +11,7 @@ import { logger, startupLog, shutdownLog } from './utils/logger.js';
 import { checkBirthdays } from './services/birthdayService.js';
 import { checkGiveaways } from './services/giveawayService.js';
 import { loadCommands, registerCommands as registerSlashCommands } from './handlers/commandLoader.js';
+import { setupWebRoutes } from './web/site.js';
 
 class TitanBot extends Client {
   constructor() {
@@ -181,18 +182,12 @@ class TitanBot extends Client {
       });
     });
 
-    app.get('/', (req, res) => {
-      res.status(200).json({ 
-        message: 'TitanBot System Online',
-        version: '2.0.0',
-        timestamp: new Date().toISOString()
-      });
-    });
-
     app.get('/embeds', (req, res) => {
       res.setHeader('Content-Type', 'text/html');
       res.send(getEmbedsPage());
     });
+
+    setupWebRoutes(app, this.client, this.db);
 
     const startServer = (port, attempt = 0) => {
       let hasStartedListening = false;
