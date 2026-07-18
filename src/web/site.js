@@ -101,6 +101,33 @@ const CSS = `
 
   /* ── HERO ── */
   .hero { text-align: center; padding: 20px 0 64px; }
+  /* ── BOT PRESENCE CARD ── */
+  .bot-card {
+    display: inline-flex; align-items: center; gap: 16px;
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 14px 22px; border-radius: 16px; margin-bottom: 32px;
+  }
+  .bot-av-wrap { position: relative; flex-shrink: 0; }
+  .bot-av {
+    width: 64px; height: 64px; border-radius: 50%;
+    border: 2px solid var(--border);
+  }
+  .bot-status-dot {
+    position: absolute; bottom: 2px; right: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--surface);
+  }
+  .bot-info { text-align: left; }
+  .bot-info-name { font-size: 16px; font-weight: 700; color: #fff; }
+  .bot-info-status {
+    font-size: 12px; color: var(--muted); margin-top: 3px;
+    display: flex; align-items: center; gap: 5px; text-transform: capitalize;
+  }
+  .status-online  { background: #3ba55d; }
+  .status-idle    { background: #faa61a; }
+  .status-dnd     { background: #ed4245; }
+  .status-offline { background: #80848e; }
+
   .hero-badge {
     display: inline-flex; align-items: center; gap: 6px;
     background: var(--surface-2); border: 1px solid var(--border);
@@ -256,6 +283,49 @@ const CSS = `
   }
   .lb-loading { text-align: center; padding: 48px; color: var(--muted); font-size: 14px; }
 
+  /* ── PROFILE PAGE ── */
+  .profile-hero {
+    display: flex; align-items: center; gap: 24px;
+    padding: 36px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 24px;
+  }
+  .profile-avatar {
+    width: 88px; height: 88px; border-radius: 50%;
+    border: 3px solid var(--border); flex-shrink: 0;
+  }
+  .profile-name { font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+  .profile-id { font-size: 12px; color: var(--muted); margin-top: 3px; font-family: monospace; }
+  .profile-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px; margin-bottom: 24px;
+  }
+  .profile-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px;
+  }
+  .profile-card-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--muted); margin-bottom: 14px;
+  }
+  .profile-stat { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .profile-stat:last-child { margin-bottom: 0; }
+  .profile-stat-label { font-size: 13px; color: var(--muted); }
+  .profile-stat-val { font-size: 14px; font-weight: 700; color: var(--text); }
+  .xp-bar-wrap { margin-top: 14px; }
+  .xp-bar-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+  .xp-bar-bg { background: var(--surface-2); border-radius: 99px; height: 8px; overflow: hidden; }
+  .xp-bar-fill { height: 100%; border-radius: 99px; background: var(--accent); }
+  .profile-medals { display: flex; flex-direction: column; gap: 8px; }
+  .profile-medal-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: var(--surface-2);
+    border-radius: 8px; border: 1px solid var(--border);
+  }
+  .profile-medal-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .profile-medal-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .profile-back { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; text-decoration: none; margin-bottom: 20px; }
+  .profile-back:hover { color: var(--text); }
+
   /* ── FOOTER ── */
   footer {
     border-top: 1px solid var(--border); padding: 28px 24px;
@@ -283,14 +353,15 @@ function layout(title, body, activeNav) {
 <title>${title} — The Hideaway</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
 <style>${CSS}</style>
 </head>
 <body>
 <nav class="topnav">
   <a class="nav-brand" href="/">
     <span class="brand-icon">🛡️</span>
-    <span class="brand-name">TitanBot</span>
-    <span class="brand-sub">The Hideaway</span>
+    <span class="brand-name">Hideaway</span>
+    <span class="brand-sub">TitanBot</span>
   </a>
   <div class="nav-links">
     <a href="/" ${activeNav === 'home' ? 'class="active"' : ''}>Home</a>
@@ -307,10 +378,19 @@ function layout(title, body, activeNav) {
 </html>`;
 }
 
-function homePage(guild) {
+function homePage(guild, client) {
     const memberCount = guild?.memberCount ?? '—';
     const commandCount = 65;
     const up = uptimeStr();
+
+    const botUser   = client?.user;
+    const botName   = botUser?.username ?? 'TitanBot';
+    const botAvatar = botUser?.avatar
+        ? `https://cdn.discordapp.com/avatars/${botUser.id}/${botUser.avatar}.png?size=128`
+        : `https://cdn.discordapp.com/embed/avatars/0.png`;
+    const rawStatus = botUser?.presence?.status ?? (client?.isReady?.() ? 'online' : 'offline');
+    const statusLabels = { online: 'Online', idle: 'Idle', dnd: 'Do Not Disturb', offline: 'Offline', invisible: 'Invisible' };
+    const statusLabel  = statusLabels[rawStatus] ?? rawStatus;
 
     const features = [
         { icon: '🛡️', name: 'Moderation', desc: 'Bans, kicks, warns, timeouts, mutes and case tracking.' },
@@ -361,8 +441,15 @@ function homePage(guild) {
     return layout('Home', `
 <div class="container">
   <div class="hero">
-    <div class="hero-badge">
-      <span class="dot"></span> Online &amp; Serving The Hideaway
+    <div class="bot-card">
+      <div class="bot-av-wrap">
+        <img class="bot-av" src="${botAvatar}" alt="${botName}">
+        <div class="bot-status-dot status-${rawStatus}"></div>
+      </div>
+      <div class="bot-info">
+        <div class="bot-info-name">${botName}</div>
+        <div class="bot-info-status">${statusLabel}</div>
+      </div>
     </div>
     <h1>The bot behind<br><span>The Hideaway</span></h1>
     <p>TitanBot keeps The Hideaway running — moderation, economy, leveling, medals and more, all in one place.</p>
@@ -534,10 +621,12 @@ function leaderboardPage() {
     const av = u.avatar
       ? \`https://cdn.discordapp.com/avatars/\${u.id}/\${u.avatar}.png?size=64\`
       : \`https://cdn.discordapp.com/embed/avatars/0.png\`;
-    return \`<div class="lb-user">
-      <img class="lb-avatar" src="\${av}" alt="" loading="lazy">
-      <span class="lb-username">\${u.username}</span>
-    </div>\`;
+    return \`<a href="/profile/\${u.id}" style="text-decoration:none;color:inherit">
+      <div class="lb-user">
+        <img class="lb-avatar" src="\${av}" alt="" loading="lazy">
+        <span class="lb-username">\${u.username}</span>
+      </div>
+    </a>\`;
   }
 
   async function loadXp() {
@@ -593,6 +682,129 @@ function leaderboardPage() {
 </script>`, 'leaderboard');
 }
 
+async function profilePage(client, db, userId) {
+    const guild = client?.guilds?.cache?.get(GUILD_ID);
+
+    let user = client?.users?.cache?.get(userId);
+    if (!user) {
+        try { user = await client.users.fetch(userId); } catch { /* not found */ }
+    }
+    if (!user) return null;
+
+    const member = guild?.members?.cache?.get(userId)
+        ?? await guild?.members?.fetch(userId).catch(() => null);
+
+    const displayName = member?.displayName ?? user.username;
+    const av = avatarUrl(user);
+
+    const pool = db?.db?.pool;
+    let xpRow = null, ecoRow = null;
+    if (pool) {
+        const [xpRes, ecoRes] = await Promise.all([
+            pool.query(`SELECT xp, level, total_xp FROM user_levels WHERE guild_id=$1 AND user_id=$2`, [GUILD_ID, userId]).catch(() => null),
+            pool.query(`SELECT balance, bank FROM economy WHERE guild_id=$1 AND user_id=$2`, [GUILD_ID, userId]).catch(() => null),
+        ]);
+        xpRow  = xpRes?.rows?.[0]  ?? null;
+        ecoRow = ecoRes?.rows?.[0] ?? null;
+    }
+
+    const level   = xpRow ? Number(xpRow.level) : 0;
+    const xp      = xpRow ? Number(xpRow.xp) : 0;
+    const totalXp = xpRow ? Number(xpRow.total_xp) : 0;
+    const xpNeeded = xpForLevel(level);
+    const pct = xpNeeded > 0 ? Math.min(100, Math.round((xp / xpNeeded) * 100)) : 0;
+
+    const wallet = ecoRow ? Number(ecoRow.balance) : 0;
+    const bank   = ecoRow ? Number(ecoRow.bank) : 0;
+
+    const medals = await db.get(`medals_${GUILD_ID}`, {});
+    const heldMedals = Object.values(medals).filter(m =>
+        member?.roles?.cache?.has(m.roleId)
+    );
+
+    const qualConfig = await db.get(`qualification_config_${GUILD_ID}`, {});
+    const heldQuals = Object.entries(qualConfig)
+        .filter(([, roleId]) => member?.roles?.cache?.has(roleId))
+        .map(([name]) => name);
+
+    const medalHtml = heldMedals.length > 0
+        ? heldMedals.map(m => `
+            <div class="profile-medal-item">
+              <div class="profile-medal-dot" style="background:${colorHex(m.color)}"></div>
+              <span class="profile-medal-name">${m.name}</span>
+            </div>`).join('')
+        : `<p style="font-size:13px;color:var(--muted);font-style:italic">No medals yet.</p>`;
+
+    const qualHtml = heldQuals.length > 0
+        ? heldQuals.map(q => `
+            <div class="profile-medal-item">
+              <div class="profile-medal-dot" style="background:var(--accent)"></div>
+              <span class="profile-medal-name">${q}</span>
+            </div>`).join('')
+        : `<p style="font-size:13px;color:var(--muted);font-style:italic">No qualifications yet.</p>`;
+
+    return layout(`${displayName}'s Profile`, `
+<div class="container">
+  <a class="profile-back" href="/leaderboard">← Back to leaderboard</a>
+  <div class="profile-hero">
+    <img class="profile-avatar" src="${av}" alt="${displayName}">
+    <div>
+      <div class="profile-name">${displayName}</div>
+      ${user.username !== displayName ? `<div style="font-size:13px;color:var(--muted);margin-top:2px">@${user.username}</div>` : ''}
+      <div class="profile-id">${userId}</div>
+    </div>
+  </div>
+  <div class="profile-grid">
+    <div class="profile-card">
+      <div class="profile-card-title">⭐ XP &amp; Leveling</div>
+      <div class="profile-stat">
+        <span class="profile-stat-label">Level</span>
+        <span class="profile-stat-val">${level}</span>
+      </div>
+      <div class="profile-stat">
+        <span class="profile-stat-label">Total XP</span>
+        <span class="profile-stat-val">${numFmt(totalXp)}</span>
+      </div>
+      <div class="profile-stat">
+        <span class="profile-stat-label">Progress</span>
+        <span class="profile-stat-val">${numFmt(xp)} / ${numFmt(xpNeeded)}</span>
+      </div>
+      <div class="xp-bar-wrap">
+        <div class="xp-bar-label">
+          <span>Lv ${level}</span><span>Lv ${level + 1}</span>
+        </div>
+        <div class="xp-bar-bg">
+          <div class="xp-bar-fill" style="width:${pct}%"></div>
+        </div>
+      </div>
+    </div>
+    <div class="profile-card">
+      <div class="profile-card-title">💰 Economy</div>
+      <div class="profile-stat">
+        <span class="profile-stat-label">Wallet</span>
+        <span class="profile-stat-val">🪙 ${numFmt(wallet)}</span>
+      </div>
+      <div class="profile-stat">
+        <span class="profile-stat-label">Bank</span>
+        <span class="profile-stat-val">🪙 ${numFmt(bank)}</span>
+      </div>
+      <div class="profile-stat">
+        <span class="profile-stat-label">Total</span>
+        <span class="profile-stat-val">🪙 ${numFmt(wallet + bank)}</span>
+      </div>
+    </div>
+    <div class="profile-card">
+      <div class="profile-card-title">🏅 Medals</div>
+      <div class="profile-medals">${medalHtml}</div>
+    </div>
+    <div class="profile-card">
+      <div class="profile-card-title">🎓 Qualifications</div>
+      <div class="profile-medals">${qualHtml}</div>
+    </div>
+  </div>
+</div>`, '');
+}
+
 async function getXpLeaderboard(client, db) {
     try {
         const pool = db?.db?.pool;
@@ -640,7 +852,7 @@ export function setupWebRoutes(app, client, db) {
     app.get('/', (req, res) => {
         const guild = client?.guilds?.cache?.get(GUILD_ID);
         res.setHeader('Content-Type', 'text/html');
-        res.send(homePage(guild));
+        res.send(homePage(guild, client));
     });
 
     app.get('/medals', async (req, res) => {
@@ -677,6 +889,24 @@ export function setupWebRoutes(app, client, db) {
             });
             res.json(out);
         } catch { res.status(500).json({ error: 'Failed to load medals' }); }
+    });
+
+    app.get('/profile/:userId', async (req, res) => {
+        const { userId } = req.params;
+        if (!/^\d{17,20}$/.test(userId)) return res.status(404).send('Not found');
+        try {
+            const html = await profilePage(client, db, userId);
+            if (!html) return res.status(404).send(layout('Not Found', `
+<div class="container"><div class="empty-state">
+  <div class="icon">❓</div>
+  <p>That member wasn't found in The Hideaway.</p>
+  <a href="/leaderboard" class="btn-primary" style="display:inline-block;margin-top:16px">Back to leaderboard</a>
+</div></div>`, ''));
+            res.setHeader('Content-Type', 'text/html');
+            res.send(html);
+        } catch (err) {
+            res.status(500).send('Error loading profile.');
+        }
     });
 
     app.get('/api/leaderboard/xp', async (req, res) => {
