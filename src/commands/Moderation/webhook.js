@@ -9,6 +9,26 @@ import { setInDb, getFromDb } from '../../utils/database.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
+// Components V2 types (Discord API): MediaGallery=12, TextDisplay=10, Separator=14, Container=17
+const COMPONENTS_V2_TYPES = new Set([10, 12, 14, 17]);
+const IS_COMPONENTS_V2 = 1 << 15; // MessageFlags.IsComponentsV2
+
+function hasComponentsV2(components) {
+    if (!Array.isArray(components)) return false;
+    return components.some(c => COMPONENTS_V2_TYPES.has(c?.type));
+}
+
+function buildSendPayload(payload, extraContent) {
+    if (extraContent) payload.content = extraContent;
+    const useV2 = hasComponentsV2(payload.components);
+    return {
+        ...(payload.content ? { content: payload.content } : {}),
+        ...(payload.embeds?.length ? { embeds: payload.embeds } : {}),
+        ...(payload.components?.length ? { components: payload.components } : {}),
+        ...(useV2 ? { flags: IS_COMPONENTS_V2 } : {}),
+    };
+}
+
 async function getWebhooks(guildId) {
     return (await getFromDb(`webhooks_${guildId}`)) || {};
 }
@@ -153,11 +173,7 @@ export default {
                         const raw = await res.text();
                         const payload = parseDiscohookJson(raw);
 
-                        await channel.send({
-                            ...(payload.content ? { content: payload.content } : {}),
-                            ...(payload.embeds?.length ? { embeds: payload.embeds } : {}),
-                            ...(payload.components?.length ? { components: payload.components } : {}),
-                        });
+                        await channel.send(buildSendPayload(payload));
                         initialSent = true;
                     } catch (err) {
                         logger.error('Webhook create — initial send error:', err);
@@ -273,15 +289,7 @@ export default {
                         payload = parseDiscohookJson(raw);
                     }
 
-                    if (plainContent) payload.content = plainContent;
-
-                    const sendPayload = {
-                        ...(payload.content ? { content: payload.content } : {}),
-                        ...(payload.embeds?.length ? { embeds: payload.embeds } : {}),
-                        ...(payload.components?.length ? { components: payload.components } : {}),
-                    };
-
-                    await channel.send(sendPayload);
+                    await channel.send(buildSendPayload(payload, plainContent));
 
                     const embed = new EmbedBuilder()
                         .setColor(0x57F287)
