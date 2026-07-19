@@ -3,7 +3,8 @@ import {
     PermissionFlagsBits,
     EmbedBuilder,
     MessageFlags,
-    ChannelType
+    ChannelType,
+    Routes
 } from 'discord.js';
 import { setInDb, getFromDb } from '../../utils/database.js';
 import { logger } from '../../utils/logger.js';
@@ -18,15 +19,25 @@ function hasComponentsV2(components) {
     return components.some(c => COMPONENTS_V2_TYPES.has(c?.type));
 }
 
-function buildSendPayload(payload, extraContent) {
+// For components v2 types, discord.js rejects them during its own serialization.
+// We bypass discord.js entirely and POST the raw payload via the REST client.
+async function sendMessage(client, channel, payload, extraContent) {
     if (extraContent) payload.content = extraContent;
     const useV2 = hasComponentsV2(payload.components);
-    return {
+
+    const body = {
         ...(payload.content ? { content: payload.content } : {}),
         ...(payload.embeds?.length ? { embeds: payload.embeds } : {}),
         ...(payload.components?.length ? { components: payload.components } : {}),
         ...(useV2 ? { flags: IS_COMPONENTS_V2 } : {}),
     };
+
+    if (useV2) {
+        // Raw REST — skips discord.js component validation entirely
+        await client.rest.post(Routes.channelMessages(channel.id), { body });
+    } else {
+        await channel.send(body);
+    }
 }
 
 async function getWebhooks(guildId) {
@@ -173,7 +184,7 @@ export default {
                         const raw = await res.text();
                         const payload = parseDiscohookJson(raw);
 
-                        await channel.send(buildSendPayload(payload));
+                        await sendMessage(client, channel, payload);
                         initialSent = true;
                     } catch (err) {
                         logger.error('Webhook create — initial send error:', err);
@@ -289,7 +300,7 @@ export default {
                         payload = parseDiscohookJson(raw);
                     }
 
-                    await channel.send(buildSendPayload(payload, plainContent));
+                    await sendMessage(client, channel, payload, plainContent);
 
                     const embed = new EmbedBuilder()
                         .setColor(0x57F287)
